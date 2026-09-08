@@ -19,6 +19,7 @@ from views import (
     ai_growth,
     social_sharing_card,
     history_review,
+    history_review_v3,
 	a
 )
 
@@ -284,7 +285,7 @@ urlpatterns = [
 
 
     # ======================
-    # 歷史回顧
+    # 歷史回顧（第一版）
     # ======================
     path(
         'history-review/',
@@ -326,6 +327,26 @@ urlpatterns = [
         history_review.history_review,
         name='history_review_alias'
     ),
+
+    # ======================
+    # 歷史回顧（第三版）
+    # ======================
+    path(
+        'history-review-v3/',
+        history_review_v3.v3_timeline,
+        name='history_review_v3'
+    ),
+    path(
+        'history-review-v3/memory-wall/',
+        history_review_v3.v3_memory_wall,
+        name='history_review_v3_memory_wall'
+    ),
+    path(
+        'history-review-v3/baby-growth/',
+        history_review_v3.v3_baby_growth,
+        name='history_review_v3_baby_growth'
+    ),
+
 		# ------------------------
 	path('1/',a.ai_growth,name='1'),
 	path('m/',a.m,name='m'),
