@@ -177,7 +177,7 @@ def set_care_status(request):
     selected_date = _parse_selected_date(request.POST.get('selected_date'))
     case = resolve_active_pregnancy_case(request, current_user)
 
-    if not case or not _check_care_permission(current_user, case, required='edit'):
+    if not case or not _check_care_permission(current_user, case, required='view'):
         return redirect(url_with_active_selection(request, '/', {'date': selected_date.isoformat()}))
 
     care_id = request.POST.get('carerecord_id')
