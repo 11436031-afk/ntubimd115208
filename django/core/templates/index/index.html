@@ -1011,3 +1011,1042 @@
 </script>
 <script src="{% static 'js/index.js' %}"></script>
 {% endblock %}
+=======
+{% extends 'base/base.html' %}
+{% load static %}
+{% load tz %}
+{% block title %}首頁{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/index.css' %}">
+{% endblock %}
+{% block content %}
+    <main class="mx-auto pb-12 max-w-md md:max-w-none w-full transition-all duration-500 ease-in-out md:px-8 lg:px-16 xl:px-32 2xl:px-64">
+        <!-- Welcome Section -->
+        <section class="px-6 py-6 flex justify-between items-end">
+            <div class="space-y-1">
+                <h1 class="text-3xl font-extrabold text-primary tracking-tight">哈囉，{{ current_user }}~</h1>
+            </div>
+        </section>
+        <div class="lg:grid lg:grid-cols-2 lg:gap-8 lg:px-6 items-start">
+            <!-- Pregnancy Progress Card -->
+            {% if pregnancy_progress.show_card %}
+            <div class="px-6 lg:px-0 mb-2 lg:col-span-2">
+                <div class="bg-surface-container-lowest rounded-3xl p-8 shadow-sm relative overflow-hidden">
+                    <div class="flex items-center justify-between gap-4 mb-1">
+                        <span class="text-primary font-bold text-sm">目前進度</span>
+                        {% if pregnancy_progress.order_name %}
+                        <span class="text-[11px] font-bold text-on-surface-variant bg-primary/5 px-2.5 py-1 rounded-full">
+                            {{ pregnancy_progress.order_name }}{% if pregnancy_progress.baby_name %} · {{ pregnancy_progress.baby_name }}{% endif %}
+                        </span>
+                        {% endif %}
+                    </div>
+                    <div class="flex items-center gap-6 mt-4">
+                        <div
+                            class="relative w-24 h-24 flex items-center justify-center bg-primary-container rounded-full overflow-hidden shrink-0">
+                            {% if pregnancy_progress.is_ongoing %}
+                            <img alt="Embryo illustration" class="w-full h-full object-cover"
+                                src="https://lh3.googleusercontent.com/aida-public/AB6AXuBrKZf3KG9X7eILhFiWKrV_XnVbNzlNNk53ehHHkkcKKCJERwNP49wVlRn3tR5ZhCszTKBPyEpLefs5YJCM8c-f0xNBc7BGb8IOS_Veq4i-9HM3rUIy8Cm2aUGwM7HseTdogavWToiVWXC8ZwHdyIntscQlw_sHGAJM0EbSIGP1_kRsI5Ly_wfRkCcE2lEEgYemQX1r7B6E_L651x2VN9W-dxJP0Ol8pw9Wo3YJPOmtdm8_bMLA2tWtiEsKOvIEBw2YMf4DrGcl8yKb" />
+                            {% else %}
+                            <img alt="Baby illustration" class="w-full h-full object-cover"
+                                src="{% static 'media/baby_born_icon.png' %}" />
+                            {% endif %}
+                        </div>
+                        <div class="space-y-0.5">
+                            {% if pregnancy_progress.is_ongoing and pregnancy_progress.weeks is not None %}
+                            <div class="flex items-baseline gap-1">
+                                <span class="text-4xl font-extrabold text-primary tracking-tighter">{{ pregnancy_progress.weeks }}</span>
+                                <span class="text-lg font-bold text-on-surface-variant">週</span>
+                                <span class="text-4xl font-extrabold text-primary tracking-tighter">{{ pregnancy_progress.days }}</span>
+                                <span class="text-lg font-bold text-on-surface-variant">天</span>
+                            </div>
+                            {% elif not pregnancy_progress.is_ongoing and pregnancy_progress.weeks is not None %}
+                            <div class="flex items-baseline gap-1">
+                                <span class="text-4xl font-extrabold text-primary tracking-tighter">{{ pregnancy_progress.weeks }}</span>
+                                <span class="text-lg font-bold text-on-surface-variant">個月</span>
+                                {% if pregnancy_progress.days %}
+                                <span class="text-4xl font-extrabold text-primary tracking-tighter">{{ pregnancy_progress.days }}</span>
+                                <span class="text-lg font-bold text-on-surface-variant">天</span>
+                                {% endif %}
+                            </div>
+                            {% else %}
+                            <p class="text-lg font-bold text-primary">{{ pregnancy_progress.status_note }}</p>
+                            {% endif %}
+                            {% if pregnancy_progress.status_note and pregnancy_progress.is_ongoing and pregnancy_progress.weeks is not None %}
+                            <p class="text-xs text-on-surface-variant">{{ pregnancy_progress.status_note }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="mt-8 h-2 w-full bg-primary-container rounded-full overflow-hidden">
+                        <div class="h-full bg-primary rounded-full transition-all duration-300" style="width: {{ pregnancy_progress.progress_percent }}%;"></div>
+                    </div>
+                    <div class="flex justify-between mt-2">
+                        {% if pregnancy_progress.is_ongoing %}
+                        <span class="text-[10px] font-bold text-on-surface-variant/60">第 1 週</span>
+                        <span class="text-[10px] font-bold text-on-surface-variant/60">第 40 週</span>
+                        {% else %}
+                        <span class="text-[10px] font-bold text-on-surface-variant/60">0 個月</span>
+                        <span class="text-[10px] font-bold text-on-surface-variant/60">36 個月</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            <!-- Today's Checklist -->
+            <div class="px-6 lg:px-0 mb-8">
+                <div class="bg-surface-container-lowest rounded-3xl p-6 shadow-sm flex flex-col space-y-4" data-selected-date="{{ selected_date_iso }}" data-today-date="{{ today_iso }}">
+                    <div class="flex justify-between items-center gap-4 mb-1">
+                        <div class="flex flex-col gap-1">
+                            <h3 class="font-bold text-primary text-lg">待辦清單</h3>
+                        </div>
+                        <button onclick="window.location.href='/add_care_reminder/?date={{ selected_date_iso }}'"
+                            class="bg-primary/10 text-primary w-8 h-8 rounded-full flex items-center justify-center hover:bg-primary/20 active:scale-90 transition-colors cursor-pointer shrink-0">
+                            <span class="material-symbols-outlined text-lg" data-icon="add">add</span>
+                        </button>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <button id="care-range-prev-btn" type="button" class="w-8 h-8 rounded-full hover:bg-primary/10 text-primary font-bold">&lt;</button>
+                        <button id="care-date-picker-btn" type="button" class="inline-flex items-center cursor-pointer group hover:bg-primary/5 px-3 py-1 rounded-xl transition-colors">
+                            <span id="care-date-picker-text" class="text-primary font-bold text-sm tracking-tight flex items-center gap-1">
+                                {{ selected_month_label }}
+                                <span class="material-symbols-outlined text-primary text-[18px]">keyboard_arrow_down</span>
+                            </span>
+                        </button>
+                        <button id="care-range-next-btn" type="button" class="w-8 h-8 rounded-full hover:bg-primary/10 text-primary font-bold">&gt;</button>
+                        <button id="care-today-btn" type="button" class="ml-1 px-3 py-1 rounded-full bg-primary/10 text-primary hover:bg-primary/20 text-xs font-bold">今天</button>
+                    </div>
+
+                    <div class="relative">
+                        <div class="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-surface-container-lowest to-transparent"></div>
+                        <div id="care-day-strip" class="flex gap-3 overflow-x-auto pb-2 scroll-smooth snap-x snap-mandatory">
+                            {% for day in care_day_cards %}
+                                <a href="?date={{ day.date_iso }}{% if active_case_id %}&case_id={{ active_case_id }}{% elif active_baby_id %}&baby_id={{ active_baby_id }}{% endif %}" class="min-w-[4.5rem] snap-start rounded-2xl border px-3 py-3 text-center transition-all {% if day.is_selected %}bg-primary text-white border-primary shadow-md{% else %}bg-white border-surface-container-high hover:border-primary/30 hover:bg-primary/5{% endif %}">
+                                    <div class="text-[10px] font-bold tracking-wide {% if day.is_selected %}text-white/80{% else %}text-on-surface-variant{% endif %}">{{ day.weekday }}</div>
+                                    <div class="mt-1 text-xl font-extrabold leading-none {% if day.is_selected %}text-white{% else %}text-on-surface{% endif %}">{{ day.day }}</div>
+                                    <div class="mt-1 text-[10px] font-bold {% if day.is_selected %}text-white/80{% else %}text-on-surface-variant{% endif %}">{{ day.month_label }}</div>
+                                    {% if day.has_record %}
+                                        <div class="mt-2 inline-flex items-center justify-center rounded-full px-2 py-0.5 text-[9px] font-bold {% if day.is_selected %}bg-white/15 text-white{% else %}bg-primary/10 text-primary{% endif %}">{{ day.completion }}</div>
+                                    {% endif %}
+                                </a>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="mb-2 mt-1 flex flex-col gap-2">
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-bold text-on-surface">{{ selected_day_label }}進度</span>
+                            <span class="text-[10px] bg-primary/10 text-primary px-3 py-1 rounded-full font-bold">{{ care_done_count }}/{{ care_total_count }}</span>
+                        </div>
+                        <div class="w-full bg-surface-container-high h-1.5 rounded-full overflow-hidden">
+                            <div class="bg-primary h-full rounded-full transition-all duration-300" style="width: {{ care_progress_percent }}%;"></div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-3 pt-1">
+                        {% if care_records %}
+                            {% for care in care_records %}
+                            <div class="flex items-start gap-3">
+                                <form method="post" action="{% url 'set_care_status' %}" class="shrink-0">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="carerecord_id" value="{{ care.carerecord_id }}">
+                                    <input type="hidden" name="selected_date" value="{{ selected_date_iso }}">
+                                    <input type="hidden" name="state" value="{% if care.state %}0{% else %}1{% endif %}">
+                                    <button type="submit" class="w-6 h-6 rounded-md {% if care.state %}bg-[#d6beff]{% else %}border-2 border-[#d6beff]{% endif %} flex items-center justify-center cursor-pointer" aria-label="切換提醒完成狀態">
+                                        {% if care.state %}
+                                        <span class="material-symbols-outlined text-primary text-sm font-bold">check</span>
+                                        {% endif %}
+                                    </button>
+                                </form>
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center gap-2 min-w-0">
+                                        <span class="text-sm font-bold text-primary shrink-0">{{ care.recordtime|localtime|date:'H:i' }}</span>
+                                        <span class="text-xs bg-primary/10 text-primary px-2.5 py-1 rounded-full font-bold shrink-0">{{ care.carestatus.carestatus|default:'提醒' }}</span>
+                                        <span class="text-sm font-semibold {% if care.state %}text-on-surface/50 line-through{% else %}text-on-surface{% endif %} truncate">{{ care.content }}</span>
+                                    </div>
+                                    {% if care.user %}
+                                    <!--哪位user新增的提醒事項 -->
+                                    <span class="text-[10px] text-on-surface-variant/70 mt-0.5 block"> {{ care.user.name }} 新增</span>
+                                    {% endif %}
+                                </div>
+                                <button type="button" onclick="window.location.href='{% url 'edit_care_reminder' %}?carerecord_id={{ care.carerecord_id }}&date={{ selected_date_iso }}'" class="shrink-0 w-6 h-6 rounded-md flex items-center justify-center cursor-pointer text-on-surface-variant/50 hover:text-primary hover:bg-primary/10 transition-colors" aria-label="編輯提醒事項">
+                                    <span class="material-symbols-outlined text-base">edit</span>
+                                </button>
+                                <form method="post" action="{% url 'delete_care_reminder' %}" class="shrink-0" onsubmit="return confirm('確定要刪除這筆提醒事項嗎？');">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="carerecord_id" value="{{ care.carerecord_id }}">
+                                    <input type="hidden" name="selected_date" value="{{ selected_date_iso }}">
+                                    <button type="submit" class="w-6 h-6 rounded-md flex items-center justify-center cursor-pointer text-on-surface-variant/50 hover:text-red-500 hover:bg-red-500/10 transition-colors" aria-label="刪除提醒事項">
+                                        <span class="material-symbols-outlined text-base">delete</span>
+                                    </button>
+                                </form>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="rounded-2xl bg-surface-container-low py-6 px-4 text-center">
+                                <p class="text-xs font-semibold text-on-surface-variant">這一天沒有待辦清單</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Refined Growth Chart -->
+            <!-- Third Card: Growth Chart -->
+        <div class="px-6 lg:px-0 mb-8">
+            <div class="bg-surface-container-lowest rounded-3xl p-6 shadow-sm flex flex-col space-y-4 h-full">
+                <div class="flex justify-between items-center gap-4 mb-1">
+                    <h3 class="font-bold text-primary text-lg flex items-center gap-2">
+                        成長趨勢
+                    </h3>
+                    <div class="flex bg-surface-container-low p-1 rounded-full text-[10px] font-bold">
+                        <button id="chart-tab-caregiver" type="button" class="px-4 py-1.5 rounded-full bg-white text-primary shadow-sm">養育者</button>
+                        <button id="chart-tab-baby" type="button" class="px-4 py-1.5 rounded-full text-on-surface-variant">嬰幼兒</button>
+                    </div>
+                </div>
+                <!-- Range Filter Buttons -->
+                <div class="flex items-center justify-between">
+                    <div></div>
+                    <div class="flex items-center gap-2">
+                        <div class="text-[10px] font-bold text-on-surface-variant">日期範圍</div>
+                        <div class="flex bg-surface-container-low p-1 rounded-full text-[10px] font-bold">
+                            <button id="chart-range-week" type="button" class="px-3 py-1.5 rounded-full text-on-surface-variant hover:bg-surface-container-low">最近7天</button>
+                            <button id="chart-range-month" type="button" class="px-3 py-1.5 rounded-full text-on-surface-variant hover:bg-surface-container-low">最近30天</button>
+                            <button id="chart-range-all" type="button" class="px-3 py-1.5 rounded-full bg-white text-primary shadow-sm">全部</button>
+                        </div>
+                    </div>
+                </div>
+
+            <!-- Standard Full Line Chart Graphic -->
+            <div class="relative h-56 w-full flex">
+                <!-- Y-Axis Labels (左：體重) -->
+                <div id="y-axis-labels" class="flex flex-col justify-between text-[9px] font-bold text-[#65518a]/70 pr-2 pb-6"></div>
+
+                <!-- Chart Area -->
+                <div class="relative flex-1">
+                    <!-- Grid Lines -->
+                    <div class="absolute inset-x-0 top-0 bottom-6 flex flex-col justify-between">
+                        <div class="w-full h-[1px] bg-surface-container-high/60"></div>
+                        <div class="w-full h-[1px] bg-surface-container-high/60"></div>
+                        <div class="w-full h-[1px] bg-surface-container-high/60"></div>
+                        <div class="w-full h-[1px] bg-surface-container-high/60"></div>
+                        <div class="w-full h-[1px] bg-surface-container-high/60"></div>
+                    </div>
+
+                    <!-- SVG Chart -->
+                    <div class="absolute inset-x-0 top-0 bottom-6">
+                        <svg id="chart-svg" class="h-full w-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 100 100"></svg>
+                        <div id="chart-empty-state" class="hidden absolute inset-0 flex items-center justify-center pointer-events-none">
+                                <div id="chart-empty-text" class="rounded-2xl bg-surface-container-low px-4 py-3 text-xs font-semibold text-on-surface-variant shadow-sm">尚無孕期體重紀錄</div>
+                            </div>
+                    </div>
+
+                    <!-- X-Axis Labels -->
+                    <div id="chart-x-labels" class="absolute bottom-0 left-0 right-0 flex justify-between text-[9px] font-bold text-on-surface-variant/60 translate-y-2"></div>
+                </div>
+
+                <!-- Y-Axis Labels (右：身高，嬰幼兒模式才顯示) -->
+                <div id="y-axis-labels-height" class="hidden flex-col justify-between text-[9px] font-bold text-[#2e9e6b]/70 pl-2 pb-6"></div>
+            </div>
+
+                <!-- Chart Legend -->
+                <div class="flex justify-center items-center gap-6 mt-2">
+                    <div class="flex items-center gap-2">
+                        <div class="w-3 h-1 rounded-full bg-[#65518a]"></div>
+                        <span id="chart-legend-text" class="text-[10px] font-bold text-on-surface-variant">體重 (kg)</span>
+                    </div>
+                    <div id="chart-legend-height" class="hidden flex items-center gap-2">
+                        <div class="w-3 h-1 rounded-full bg-[#2e9e6b]"></div>
+                        <span class="text-[10px] font-bold text-on-surface-variant">身高 (cm)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        </div>
+
+        <!-- 歷史回顧入口卡片區塊 (包含兩版本雙入口) -->
+        <section class="px-6 lg:px-6 mt-6 mb-4 w-full space-y-4">
+            <!-- 歷史回顧 (第一版) -->
+            <a href="/history-review/{% if active_selection_query %}?{{ active_selection_query }}{% endif %}" class="group relative block w-full rounded-3xl bg-gradient-to-r from-[#f6efff] via-[#fff0f4] to-[#f4f0ff] p-6 border border-[#c8b1f0]/40 shadow-[0_10px_30px_rgba(101,81,138,0.08)] backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_40px_rgba(101,81,138,0.15)] active:scale-[0.98] overflow-hidden">
+                <!-- 裝飾性柔和背景光圈 -->
+                <div class="absolute -right-6 -top-6 w-28 h-28 bg-[#d6beff]/30 rounded-full blur-2xl group-hover:scale-125 transition-transform duration-500 pointer-events-none"></div>
+                <div class="absolute -left-6 -bottom-6 w-28 h-28 bg-[#f8bbd0]/30 rounded-full blur-2xl group-hover:scale-125 transition-transform duration-500 pointer-events-none"></div>
+
+                <div class="relative z-10 flex items-center justify-between">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-2xl bg-white/80 backdrop-blur-md shadow-xs flex items-center justify-center text-[#65518a] group-hover:scale-110 group-hover:bg-white transition-all duration-300 shrink-0">
+                            <span class="material-symbols-outlined text-2xl text-primary" data-icon="menu_book">menu_book</span>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h3 class="text-lg font-bold text-[#362459] font-['Plus_Jakarta_Sans'] group-hover:text-[#65518a] transition-colors">
+                                    歷史回顧（第一版）
+                                </h3>
+                                <span class="px-2 py-0.5 text-[10px] font-extrabold text-[#65518a] bg-white/80 rounded-full border border-[#c8b1f0]/40">時光軸與相簿</span>
+                            </div>
+                            <p class="text-xs text-[#5b5c5a] font-medium mt-0.5 font-['Be_Vietnam_Pro']">
+                                探索每日成長軌跡、相片牆與孕期 graduation 精華
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="w-9 h-9 rounded-full bg-white/80 flex items-center justify-center text-[#65518a] shadow-xs group-hover:translate-x-1 group-hover:bg-[#65518a] group-hover:text-white transition-all duration-300 shrink-0 ml-2">
+                        <span class="material-symbols-outlined text-[20px]">arrow_forward</span>
+                    </div>
+                </div>
+            </a>
+
+            <!-- 歷史回顧 (第二版) - 合併 階段總結 / AI成長足跡 / 回憶牆 -->
+            <a href="/s/{% if active_selection_query %}?{{ active_selection_query }}{% endif %}" class="group relative block w-full rounded-3xl bg-gradient-to-r from-[#f6efff] via-[#fff0f4] to-[#f4f0ff] p-6 border border-[#c8b1f0]/40 shadow-[0_10px_30px_rgba(101,81,138,0.08)] backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_40px_rgba(101,81,138,0.15)] active:scale-[0.98] overflow-hidden">
+                <div class="absolute -right-6 -top-6 w-28 h-28 bg-[#d6beff]/30 rounded-full blur-2xl group-hover:scale-125 transition-transform duration-500 pointer-events-none"></div>
+                <div class="absolute -left-6 -bottom-6 w-28 h-28 bg-[#f8bbd0]/30 rounded-full blur-2xl group-hover:scale-125 transition-transform duration-500 pointer-events-none"></div>
+
+                <div class="relative z-10 flex items-center justify-between">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-2xl bg-white/80 backdrop-blur-md shadow-xs flex items-center justify-center text-[#65518a] group-hover:scale-110 group-hover:bg-white transition-all duration-300 shrink-0">
+                            <span class="material-symbols-outlined text-2xl text-primary" data-icon="auto_awesome">auto_awesome</span>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h3 class="text-lg font-bold text-[#362459] font-['Plus_Jakarta_Sans'] group-hover:text-[#65518a] transition-colors">
+                                    歷史回顧（第二版）
+                                </h3>
+                                <span class="px-2 py-0.5 text-[10px] font-extrabold text-[#7d4d5f] bg-[#f8bbd0]/40 rounded-full border border-[#f8bbd0]/60">精華版</span>
+                            </div>
+                            <p class="text-xs text-[#5b5c5a] font-medium mt-0.5 font-['Be_Vietnam_Pro']">
+                                階段總結 · AI 成長足跡 · 回憶牆
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="w-9 h-9 rounded-full bg-white/80 flex items-center justify-center text-[#65518a] shadow-xs group-hover:translate-x-1 group-hover:bg-[#65518a] group-hover:text-white transition-all duration-300 shrink-0 ml-2">
+                        <span class="material-symbols-outlined text-[20px]">arrow_forward</span>
+                    </div>
+                </div>
+            </a>
+
+            <!-- 歷史回顧 (第三版) - 時光軸／相簿牆／紀念冊全新整合 -->
+            <a href="/history-review-v3/{% if active_selection_query %}?{{ active_selection_query }}{% endif %}" class="group relative block w-full rounded-3xl bg-gradient-to-r from-[#f6efff] via-[#fff0f4] to-[#f4f0ff] p-6 border border-[#c8b1f0]/40 shadow-[0_10px_30px_rgba(101,81,138,0.08)] backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_40px_rgba(101,81,138,0.15)] active:scale-[0.98] overflow-hidden">
+                <div class="absolute -right-6 -top-6 w-28 h-28 bg-[#d6beff]/30 rounded-full blur-2xl group-hover:scale-125 transition-transform duration-500 pointer-events-none"></div>
+                <div class="absolute -left-6 -bottom-6 w-28 h-28 bg-[#f8bbd0]/30 rounded-full blur-2xl group-hover:scale-125 transition-transform duration-500 pointer-events-none"></div>
+
+                <div class="relative z-10 flex items-center justify-between">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-2xl bg-white/80 backdrop-blur-md shadow-xs flex items-center justify-center text-[#65518a] group-hover:scale-110 group-hover:bg-white transition-all duration-300 shrink-0">
+                            <span class="material-symbols-outlined text-2xl text-primary" data-icon="timeline">timeline</span>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h3 class="text-lg font-bold text-[#362459] font-['Plus_Jakarta_Sans'] group-hover:text-[#65518a] transition-colors">
+                                    歷史回顧（第三版）
+                                </h3>
+                                <span class="px-2 py-0.5 text-[10px] font-extrabold text-[#65518a] bg-white/80 rounded-full border border-[#c8b1f0]/40">時光軸與紀念冊整合</span>
+                            </div>
+                            <p class="text-xs text-[#5b5c5a] font-medium mt-0.5 font-['Be_Vietnam_Pro']">
+                                單條時光軸節點 · 懸浮詳情 · 時間與胎數分類相簿
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="w-9 h-9 rounded-full bg-white/80 flex items-center justify-center text-[#65518a] shadow-xs group-hover:translate-x-1 group-hover:bg-[#65518a] group-hover:text-white transition-all duration-300 shrink-0 ml-2">
+                        <span class="material-symbols-outlined text-[20px]">arrow_forward</span>
+                    </div>
+                </div>
+            </a>
+        </section>
+    </main>
+
+    {{ pregnancy_chart_data|json_script:"pregnancy-chart-data" }}
+    {{ baby_chart_data|json_script:"baby-chart-data" }}
+    <div id="care-month-picker-modal" class="fixed inset-0 z-[60] flex items-end sm:items-center justify-center opacity-0 pointer-events-none transition-all duration-300">
+        <div id="care-month-picker-backdrop" class="absolute inset-0 bg-on-surface/40 backdrop-blur-sm transition-opacity duration-300"></div>
+        <div id="care-month-picker-content" class="relative w-full max-w-md bg-surface-container-lowest rounded-t-[2rem] sm:rounded-3xl shadow-2xl transform translate-y-full sm:translate-y-4 sm:scale-95 transition-all duration-300 flex flex-col sm:mb-4">
+            <div class="w-full flex justify-center pt-3 pb-1 sm:hidden">
+                <div class="w-12 h-1.5 bg-outline-variant/30 rounded-full"></div>
+            </div>
+
+            <div class="p-4 border-b border-surface-container-high/50 flex justify-between items-center shrink-0">
+                <button type="button" id="care-month-picker-prev-year" class="p-2 hover:bg-surface-container-low rounded-full transition-colors cursor-pointer text-on-surface-variant">
+                    <span class="material-symbols-outlined">chevron_left</span>
+                </button>
+                <button type="button" id="care-month-picker-year-display" class="font-headline font-bold text-lg text-primary hover:bg-surface-container-low px-3 py-1 rounded-xl transition-colors">{{ selected_date.year }}年</button>
+                <button type="button" id="care-month-picker-next-year" class="p-2 hover:bg-surface-container-low rounded-full transition-colors cursor-pointer text-on-surface-variant">
+                    <span class="material-symbols-outlined">chevron_right</span>
+                </button>
+            </div>
+
+            <div class="p-6 grid grid-cols-4 gap-4" id="care-month-picker-grid"></div>
+        </div>
+    </div>
+
+    <div id="care-date-picker-modal" class="fixed inset-0 z-[70] flex items-end sm:items-center justify-center opacity-0 pointer-events-none transition-all duration-300">
+        <div id="care-date-picker-backdrop" class="absolute inset-0 bg-on-surface/40 backdrop-blur-sm transition-opacity duration-300"></div>
+        <div id="care-date-picker-content" class="relative w-full max-w-md bg-surface-container-lowest rounded-t-[2rem] sm:rounded-3xl shadow-2xl transform translate-y-full sm:translate-y-4 sm:scale-95 transition-all duration-300 flex flex-col sm:mb-4">
+            <div class="w-full flex justify-center pt-3 pb-1 sm:hidden">
+                <div class="w-12 h-1.5 bg-outline-variant/30 rounded-full"></div>
+            </div>
+
+            <div class="p-4 border-b border-surface-container-high/50 flex justify-between items-center shrink-0">
+                <button type="button" id="care-date-picker-back-btn" class="p-2 hover:bg-surface-container-low rounded-full transition-colors cursor-pointer text-on-surface-variant">
+                    <span class="material-symbols-outlined">chevron_left</span>
+                </button>
+                <button type="button" id="care-date-picker-month-display" class="font-headline font-bold text-lg text-primary hover:bg-surface-container-low px-3 py-1 rounded-xl transition-colors">{{ selected_date.year }}年{{ selected_date.month }}月</button>
+                <button type="button" id="care-date-picker-next-month" class="p-2 hover:bg-surface-container-low rounded-full transition-colors cursor-pointer text-on-surface-variant">
+                    <span class="material-symbols-outlined">chevron_right</span>
+                </button>
+            </div>
+
+            <div class="px-6 pt-4 grid grid-cols-7 gap-2 text-center text-[10px] font-bold text-on-surface-variant/70">
+                <span>一</span>
+                <span>二</span>
+                <span>三</span>
+                <span>四</span>
+                <span>五</span>
+                <span>六</span>
+                <span>日</span>
+            </div>
+
+            <div class="p-6 grid grid-cols-7 gap-2" id="care-date-picker-grid"></div>
+        </div>
+    </div>
+
+        <!-- Floating Join Code Button -->
+        <div class="join">
+            <span class="material-symbols-outlined text-base">vpn_key</span>
+            <span class="font-bold text-[10px] tracking-wide">加入碼: {{ pregnancy_case.code|default:'尚未建立' }}</span>
+        </div>
+
+
+{% endblock %}
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const pregnancyChartDataElement = document.getElementById('pregnancy-chart-data');
+        const pregnancyChartSvg = document.getElementById('chart-svg');
+        const pregnancyChartEmptyState = document.getElementById('chart-empty-state');
+        const pregnancyChartYAxisLabels = document.getElementById('y-axis-labels');
+        const pregnancyChartXAxisLabels = document.getElementById('chart-x-labels');
+        const monthPickerModal = document.getElementById('care-month-picker-modal');
+        const monthPickerBackdrop = document.getElementById('care-month-picker-backdrop');
+        const monthPickerContent = document.getElementById('care-month-picker-content');
+        const monthPickerYearDisplay = document.getElementById('care-month-picker-year-display');
+        const monthPickerGrid = document.getElementById('care-month-picker-grid');
+        const prevYearBtn = document.getElementById('care-month-picker-prev-year');
+        const nextYearBtn = document.getElementById('care-month-picker-next-year');
+        const datePickerModal = document.getElementById('care-date-picker-modal');
+        const datePickerBackdrop = document.getElementById('care-date-picker-backdrop');
+        const datePickerContent = document.getElementById('care-date-picker-content');
+        const datePickerMonthDisplay = document.getElementById('care-date-picker-month-display');
+        const datePickerGrid = document.getElementById('care-date-picker-grid');
+        const datePickerBackBtn = document.getElementById('care-date-picker-back-btn');
+        const datePickerNextMonthBtn = document.getElementById('care-date-picker-next-month');
+        const customDatePickerBtn = document.getElementById('care-date-picker-btn');
+        const rangePrevBtn = document.getElementById('care-range-prev-btn');
+        const rangeTodayBtn = document.getElementById('care-today-btn');
+        const rangeNextBtn = document.getElementById('care-range-next-btn');
+        const selectedDateSource = document.querySelector('[data-selected-date]');
+
+        if (!monthPickerModal || !customDatePickerBtn || !monthPickerContent || !monthPickerGrid || !monthPickerYearDisplay || !prevYearBtn || !nextYearBtn || !monthPickerBackdrop || !rangePrevBtn || !rangeTodayBtn || !rangeNextBtn || !selectedDateSource || !datePickerModal || !datePickerBackdrop || !datePickerContent || !datePickerMonthDisplay || !datePickerGrid || !datePickerBackBtn || !datePickerNextMonthBtn) {
+            return;
+        }
+
+        const pregnancyChartData = pregnancyChartDataElement ? JSON.parse(pregnancyChartDataElement.textContent || '[]') : [];
+        const pregnancyChartDataOriginal = Array.isArray(pregnancyChartData) ? pregnancyChartData.slice() : [];
+        let pregnancyChartVisibleData = pregnancyChartDataOriginal.slice();
+
+        const babyChartDataElement = document.getElementById('baby-chart-data');
+        const babyChartDataOriginal = babyChartDataElement
+            ? (JSON.parse(babyChartDataElement.textContent || '[]') || [])
+            : [];
+
+        let currentChartMode = 'caregiver';
+
+        function formatChartValue(value) {
+            if (value === null || value === undefined || Number.isNaN(value)) {
+                return '';
+            }
+            const numericValue = Number(value);
+            return Number.isInteger(numericValue) ? String(numericValue) : numericValue.toFixed(1);
+        }
+
+        function renderPregnancyChart(data = pregnancyChartVisibleData, mode = 'caregiver') {
+            if (!pregnancyChartSvg || !pregnancyChartYAxisLabels || !pregnancyChartXAxisLabels || !pregnancyChartEmptyState) {
+                return;
+            }
+
+            const records = Array.isArray(data) ? data : [];
+            const validRecords = records.filter((item) => Number.isFinite(Number(item.weight)) || Number.isFinite(Number(item.height)));
+
+            if (!validRecords.length) {
+                pregnancyChartSvg.innerHTML = '';
+                pregnancyChartYAxisLabels.innerHTML = '';
+                pregnancyChartXAxisLabels.innerHTML = '';
+                pregnancyChartEmptyState.classList.remove('hidden');
+                return;
+            }
+
+            pregnancyChartEmptyState.classList.add('hidden');
+
+            const pregnancyChartYAxisLabelsHeight = document.getElementById('y-axis-labels-height');
+
+            const topY = 8;
+            const bottomY = 88;
+            const leftX = 2;
+            const rightX = 98;
+            const chartHeight = bottomY - topY;
+            const chartWidth = rightX - leftX;
+
+            // --- 體重 Y 軸（左，紫色）---
+            const weightValues = validRecords.map(item => Number(item.weight)).filter(v => Number.isFinite(v));
+            let wMin = weightValues.length ? Math.floor(Math.min(...weightValues) / 5) * 5 : 0;
+            let wMax = weightValues.length ? Math.ceil(Math.max(...weightValues) / 5) * 5 : 10;
+            if (wMin === wMax) { wMin -= 5; wMax += 5; }
+
+            // --- 身高 Y 軸（右，綠色）---
+            const heightValues = validRecords.map(item => Number(item.height)).filter(v => Number.isFinite(v));
+            let hMin = heightValues.length ? Math.floor(Math.min(...heightValues) / 5) * 5 : 0;
+            let hMax = heightValues.length ? Math.ceil(Math.max(...heightValues) / 5) * 5 : 100;
+            if (hMin === hMax) { hMin -= 5; hMax += 5; }
+
+            function scaleYWeight(value) {
+                const ratio = (Number(value) - wMin) / (wMax - wMin);
+                return bottomY - (ratio * chartHeight);
+            }
+
+            function scaleYHeight(value) {
+                const ratio = (Number(value) - hMin) / (hMax - hMin);
+                return bottomY - (ratio * chartHeight);
+            }
+
+            function buildPathForKey(seriesKey, scaleFn) {
+                let path = '';
+                let started = false;
+                validRecords.forEach((item, index) => {
+                    const rawValue = item[seriesKey];
+                    if (!Number.isFinite(Number(rawValue))) { started = false; return; }
+                    const x = validRecords.length === 1 ? 50 : leftX + ((index / (validRecords.length - 1)) * chartWidth);
+                    const y = scaleFn(rawValue);
+                    path += `${started ? 'L' : 'M'}${x.toFixed(2)},${y.toFixed(2)} `;
+                    started = true;
+                });
+                return path.trim();
+            }
+
+            function buildPointsForKey(seriesKey, scaleFn, valueLabel) {
+                return validRecords.map((item, index) => {
+                    const rawValue = item[seriesKey];
+                    if (!Number.isFinite(Number(rawValue))) return null;
+                    const x = validRecords.length === 1 ? 50 : leftX + ((index / (validRecords.length - 1)) * chartWidth);
+                    const y = scaleFn(rawValue);
+                    const label = (item.label || item.date || item.date_iso || '').toString().replace(/"/g, '');
+                    const dateVal = (item.date || item.date_iso || item.record_date || '').toString().replace(/"/g, '');
+                    return { x, y, label, dateVal, value: Number(rawValue), unit: valueLabel };
+                }).filter(Boolean);
+            }
+
+            function buildDotsForPoints(points) {
+                return points.map(point =>
+                    `<g data-label="${point.label}" data-date="${point.dateVal}" data-weight="${point.value}" transform="translate(${point.x.toFixed(2)},${point.y.toFixed(2)})">
+                        <circle class="hit-area" cx="0" cy="0" r="8" fill="transparent" pointer-events="all"></circle>
+                    </g>`
+                ).join('');
+            }
+
+            const weightPath = buildPathForKey('weight', scaleYWeight);
+            const weightPoints = buildPointsForKey('weight', scaleYWeight, 'kg');
+            const weightDots = buildDotsForPoints(weightPoints);
+
+            let heightSvg = '';
+            let heightPoints = [];
+            if (mode === 'baby') {
+                const heightPath = buildPathForKey('height', scaleYHeight);
+                heightPoints = buildPointsForKey('height', scaleYHeight, 'cm');
+                const heightDots = buildDotsForPoints(heightPoints);
+                if (heightPath) {
+                    heightSvg = `
+                        <path d="${heightPath}" fill="none" stroke="#2e9e6b" stroke-linecap="round" stroke-linejoin="round" stroke-width="4.5" vector-effect="non-scaling-stroke"></path>
+                        <path class="hover-line-height" d="${heightPath}" fill="none" stroke="transparent" stroke-width="18" vector-effect="non-scaling-stroke" pointer-events="stroke"></path>
+                        <g>${heightDots}</g>
+                    `;
+                }
+                // 顯示右側身高 Y 軸
+                if (pregnancyChartYAxisLabelsHeight) {
+                    pregnancyChartYAxisLabelsHeight.classList.remove('hidden');
+                    pregnancyChartYAxisLabelsHeight.classList.add('flex');
+                    const yTickCount = 5;
+                    pregnancyChartYAxisLabelsHeight.innerHTML = Array.from({ length: yTickCount }, (_, i) => {
+                        const value = hMax - ((hMax - hMin) * (i / (yTickCount - 1)));
+                        return `<span>${formatChartValue(value)}</span>`;
+                    }).join('');
+                }
+            } else {
+                if (pregnancyChartYAxisLabelsHeight) {
+                    pregnancyChartYAxisLabelsHeight.classList.add('hidden');
+                    pregnancyChartYAxisLabelsHeight.classList.remove('flex');
+                    pregnancyChartYAxisLabelsHeight.innerHTML = '';
+                }
+            }
+
+            pregnancyChartSvg.innerHTML = `
+                <defs>
+                    <linearGradient id="weightGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stop-color="#65518a" stop-opacity="0.20"></stop>
+                        <stop offset="100%" stop-color="#65518a" stop-opacity="0.0"></stop>
+                    </linearGradient>
+                </defs>
+                <path d="${weightPath}" fill="none" stroke="#65518a" stroke-linecap="round" stroke-linejoin="round" stroke-width="4.5" vector-effect="non-scaling-stroke"></path>
+                <path class="hover-line" d="${weightPath}" fill="none" stroke="transparent" stroke-width="18" vector-effect="non-scaling-stroke" pointer-events="stroke"></path>
+                <g>${weightDots}</g>
+                ${heightSvg}
+            `;
+
+            let tooltip = document.getElementById('chart-tooltip');
+            if (!tooltip) {
+                tooltip = document.createElement('div');
+                tooltip.id = 'chart-tooltip';
+                tooltip.style.position = 'fixed';
+                tooltip.style.pointerEvents = 'none';
+                tooltip.style.background = 'rgba(0,0,0,0.85)';
+                tooltip.style.color = '#fff';
+                tooltip.style.padding = '6px 8px';
+                tooltip.style.borderRadius = '6px';
+                tooltip.style.fontSize = '12px';
+                tooltip.style.zIndex = '9999';
+                tooltip.style.display = 'none';
+                document.body.appendChild(tooltip);
+            }
+
+            const showTooltip = (text, clientX, clientY) => {
+                tooltip.textContent = text;
+                tooltip.style.left = `${clientX + 12}px`;
+                tooltip.style.top = `${clientY + 12}px`;
+                tooltip.style.display = 'block';
+            };
+
+            const hideTooltip = () => {
+                tooltip.style.display = 'none';
+            };
+
+            const renderPointText = (point) => `${point.dateVal || point.label || ''} — ${point.value} ${point.unit}`;
+
+            const nearestPointByClientX = (clientX) => {
+                if (!weightPoints.length) {
+                    return null;
+                }
+
+                const rect = pregnancyChartSvg.getBoundingClientRect();
+                const ratio = rect.width ? ((clientX - rect.left) / rect.width) : 0;
+                const svgX = 100 * ratio;
+
+                let nearestPoint = weightPoints[0];
+                let nearestDistance = Math.abs(weightPoints[0].x - svgX);
+
+                for (const point of weightPoints) {
+                    const distance = Math.abs(point.x - svgX);
+                    if (distance < nearestDistance) {
+                        nearestPoint = point;
+                        nearestDistance = distance;
+                    }
+                }
+
+                return nearestPoint;
+            };
+
+            const hoverLine = pregnancyChartSvg.querySelector('.hover-line');
+            if (hoverLine) {
+                hoverLine.addEventListener('mouseenter', (ev) => {
+                    const point = nearestPointByClientX(ev.clientX);
+                    if (point) {
+                        showTooltip(renderPointText(point), ev.clientX, ev.clientY);
+                    }
+                });
+                hoverLine.addEventListener('mousemove', (ev) => {
+                    const point = nearestPointByClientX(ev.clientX);
+                    if (point) {
+                        showTooltip(renderPointText(point), ev.clientX, ev.clientY);
+                    }
+                });
+                hoverLine.addEventListener('mouseleave', hideTooltip);
+            }
+
+            const hoverLineHeight = pregnancyChartSvg.querySelector('.hover-line-height');
+            if (hoverLineHeight && heightPoints.length) {
+                const nearestHeightByClientX = (clientX) => {
+                    const rect = pregnancyChartSvg.getBoundingClientRect();
+                    const ratio = rect.width ? ((clientX - rect.left) / rect.width) : 0;
+                    const svgX = 100 * ratio;
+                    let nearest = heightPoints[0];
+                    let nearestDist = Math.abs(heightPoints[0].x - svgX);
+                    for (const p of heightPoints) {
+                        const d = Math.abs(p.x - svgX);
+                        if (d < nearestDist) { nearest = p; nearestDist = d; }
+                    }
+                    return nearest;
+                };
+                hoverLineHeight.addEventListener('mouseenter', (ev) => {
+                    const p = nearestHeightByClientX(ev.clientX);
+                    if (p) showTooltip(`${p.dateVal || p.label} — ${p.value} cm`, ev.clientX, ev.clientY);
+                });
+                hoverLineHeight.addEventListener('mousemove', (ev) => {
+                    const p = nearestHeightByClientX(ev.clientX);
+                    if (p) showTooltip(`${p.dateVal || p.label} — ${p.value} cm`, ev.clientX, ev.clientY);
+                });
+                hoverLineHeight.addEventListener('mouseleave', hideTooltip);
+            }
+
+            const groups = pregnancyChartSvg.querySelectorAll('g[data-weight]');
+            groups.forEach((g) => {
+                const hit = g.querySelector('.hit-area');
+                if (!hit) return;
+
+                const weight = g.getAttribute('data-weight');
+                const date = g.getAttribute('data-date') || g.getAttribute('data-label') || '';
+                const text = `${date} — ${weight} kg`;
+                hit.addEventListener('mouseenter', (ev) => showTooltip(text, ev.clientX, ev.clientY));
+                hit.addEventListener('mousemove', (ev) => showTooltip(text, ev.clientX, ev.clientY));
+                hit.addEventListener('mouseleave', hideTooltip);
+            });
+
+            const yTickCount = 5;
+            const yTicks = Array.from({ length: yTickCount }, (_, index) => {
+                const ratio = index / (yTickCount - 1);
+                const value = wMax - ((wMax - wMin) * ratio);
+                return `<span>${formatChartValue(value)}</span>`;
+            });
+            pregnancyChartYAxisLabels.innerHTML = yTicks.join('');
+
+            const xLabelCount = Math.min(validRecords.length, 6);
+            const xLabelIndexes = xLabelCount === validRecords.length
+                ? validRecords.map((_, index) => index)
+                : Array.from({ length: xLabelCount }, (_, index) => Math.round((validRecords.length - 1) * (index / (xLabelCount - 1 || 1))));
+            const uniqueIndexes = [...new Set(xLabelIndexes)];
+
+            pregnancyChartXAxisLabels.innerHTML = validRecords.map((item, index) => {
+                if (!uniqueIndexes.includes(index)) {
+                    return '<span></span>';
+                }
+                const labelClass = index === validRecords.length - 1 ? 'text-primary font-extrabold translate-x-3' : '-translate-x-2';
+                return `<span class="${labelClass}">${item.label || ''}</span>`;
+            }).join('');
+        }
+
+        function getRecordDate(item) {
+            if (!item || typeof item !== 'object') return null;
+            const tryKeys = ['date', 'date_iso', 'record_date', 'recordtime', 'created_at', 'timestamp'];
+            for (const k of tryKeys) {
+                if (item[k]) {
+                    const d = new Date(item[k]);
+                    if (!Number.isNaN(d.getTime())) return d;
+                }
+            }
+            // try label/other fields that might contain date-like strings
+            for (const v of Object.values(item)) {
+                if (typeof v === 'string' && /\d{4}-\d{2}-\d{2}/.test(v)) {
+                    const d = new Date(v);
+                    if (!Number.isNaN(d.getTime())) return d;
+                }
+            }
+            return null;
+        }
+
+        function applyRangeFilter(range) {
+            const sourceData = (typeof currentChartMode !== 'undefined' && currentChartMode === 'baby')
+                ? babyChartDataOriginal
+                : pregnancyChartDataOriginal;
+            const mode = (typeof currentChartMode !== 'undefined') ? currentChartMode : 'caregiver';
+
+            if (!sourceData.length) {
+                pregnancyChartVisibleData = [];
+                renderPregnancyChart([], mode);
+                return;
+            }
+
+            const now = new Date();
+            let start = null;
+            if (range === 'week') {
+                start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6);
+            } else if (range === 'month') {
+                start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 29);
+            } else {
+                pregnancyChartVisibleData = sourceData.slice();
+                renderPregnancyChart(pregnancyChartVisibleData, mode);
+                return;
+            }
+
+            pregnancyChartVisibleData = sourceData.filter(item => {
+                const d = getRecordDate(item);
+                if (!d) return false;
+                return d >= start && d <= now;
+            });
+
+            renderPregnancyChart(pregnancyChartVisibleData, mode);
+        }
+
+        function setActiveRangeBtn(activeId) {
+            const ids = ['chart-range-week','chart-range-month','chart-range-all'];
+            ids.forEach(id => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                if (id === activeId) {
+                    el.classList.add('bg-white','text-primary','shadow-sm');
+                } else {
+                    el.classList.remove('bg-white','text-primary','shadow-sm');
+                }
+            });
+        }
+
+        renderPregnancyChart();
+
+        // --- 養育者 / 嬰幼兒 tab 切換 ---
+        const tabCaregiver = document.getElementById('chart-tab-caregiver');
+        const tabBaby = document.getElementById('chart-tab-baby');
+        const chartLegendHeight = document.getElementById('chart-legend-height');
+        const chartLegendText = document.getElementById('chart-legend-text');
+        const chartEmptyText = document.getElementById('chart-empty-text');
+
+        function setChartTab(mode) {
+            currentChartMode = mode;
+            const isBaby = mode === 'baby';
+
+            if (tabCaregiver) {
+                tabCaregiver.className = isBaby
+                    ? 'px-4 py-1.5 rounded-full text-on-surface-variant'
+                    : 'px-4 py-1.5 rounded-full bg-white text-primary shadow-sm';
+            }
+            if (tabBaby) {
+                tabBaby.className = isBaby
+                    ? 'px-4 py-1.5 rounded-full bg-white text-primary shadow-sm'
+                    : 'px-4 py-1.5 rounded-full text-on-surface-variant';
+            }
+            if (chartLegendHeight) chartLegendHeight.classList.toggle('hidden', !isBaby);
+            if (chartEmptyText) {
+                chartEmptyText.textContent = isBaby ? '尚無嬰幼兒身高體重紀錄' : '尚無孕期體重紀錄';
+            }
+
+            pregnancyChartVisibleData = isBaby
+                ? babyChartDataOriginal.slice()
+                : pregnancyChartDataOriginal.slice();
+
+            setActiveRangeBtn('chart-range-all');
+            renderPregnancyChart(pregnancyChartVisibleData, mode);
+        }
+
+        if (tabCaregiver) tabCaregiver.addEventListener('click', () => setChartTab('caregiver'));
+        if (tabBaby) tabBaby.addEventListener('click', () => setChartTab('baby'));
+
+        // wire up range buttons
+        const btnWeek = document.getElementById('chart-range-week');
+        const btnMonth = document.getElementById('chart-range-month');
+        const btnAll = document.getElementById('chart-range-all');
+        if (btnWeek) btnWeek.addEventListener('click', () => { setActiveRangeBtn('chart-range-week'); applyRangeFilter('week'); });
+        if (btnMonth) btnMonth.addEventListener('click', () => { setActiveRangeBtn('chart-range-month'); applyRangeFilter('month'); });
+        if (btnAll) btnAll.addEventListener('click', () => { setActiveRangeBtn('chart-range-all'); applyRangeFilter('all'); });
+
+        const activeCaseId = new URLSearchParams(window.location.search).get('case_id') || '';
+        const activeBabyId = new URLSearchParams(window.location.search).get('baby_id') || '';
+
+        function appendActiveSelection(params) {
+            if (activeCaseId) {
+                params.set('case_id', activeCaseId);
+            }
+            if (activeBabyId) {
+                params.set('baby_id', activeBabyId);
+            }
+            return params;
+        }
+
+        const selectedDateText = selectedDateSource.dataset.selectedDate || '';
+        const todayText = selectedDateSource.dataset.todayDate || '';
+        const selectedDate = selectedDateText ? new Date(`${selectedDateText}T00:00:00`) : new Date();
+        const todayDate = todayText ? new Date(`${todayText}T00:00:00`) : new Date();
+        let currentSelectedYear = selectedDate.getFullYear();
+        let currentSelectedMonth = selectedDate.getMonth() + 1;
+        let currentSelectedDay = selectedDate.getDate();
+
+        let tempYear = currentSelectedYear;
+        let tempMonth = currentSelectedMonth;
+        let tempDay = currentSelectedDay;
+
+        function clampDay(year, month, day) {
+            const maxDay = new Date(year, month, 0).getDate();
+            return Math.min(Math.max(1, day), maxDay);
+        }
+
+        function goToDate(year, month, day = 1) {
+            const safeYear = Number(year);
+            const safeMonth = Number(month);
+            const safeDay = Number(day);
+            if (!safeYear || !safeMonth || !safeDay) {
+                return;
+            }
+            const target = `${safeYear}-${String(safeMonth).padStart(2, '0')}-${String(safeDay).padStart(2, '0')}`;
+            const params = appendActiveSelection(new URLSearchParams({ date: target }));
+            window.location.href = `?${params.toString()}`;
+        }
+
+        function openMonthPicker() {
+            monthPickerModal.classList.remove('opacity-0', 'pointer-events-none');
+            monthPickerModal.classList.add('opacity-100', 'pointer-events-auto');
+            monthPickerContent.classList.remove('translate-y-full', 'sm:translate-y-4', 'sm:scale-95');
+            monthPickerContent.classList.add('translate-y-0', 'sm:translate-y-0', 'sm:scale-100');
+        }
+
+        function closeMonthPicker() {
+            monthPickerModal.classList.add('opacity-0', 'pointer-events-none');
+            monthPickerModal.classList.remove('opacity-100', 'pointer-events-auto');
+            monthPickerContent.classList.add('translate-y-full', 'sm:translate-y-4', 'sm:scale-95');
+            monthPickerContent.classList.remove('translate-y-0', 'sm:translate-y-0', 'sm:scale-100');
+        }
+
+        function openDatePicker() {
+            datePickerModal.classList.remove('opacity-0', 'pointer-events-none');
+            datePickerModal.classList.add('opacity-100', 'pointer-events-auto');
+            datePickerContent.classList.remove('translate-y-full', 'sm:translate-y-4', 'sm:scale-95');
+            datePickerContent.classList.add('translate-y-0', 'sm:translate-y-0', 'sm:scale-100');
+        }
+
+        function closeDatePicker() {
+            datePickerModal.classList.add('opacity-0', 'pointer-events-none');
+            datePickerModal.classList.remove('opacity-100', 'pointer-events-auto');
+            datePickerContent.classList.add('translate-y-full', 'sm:translate-y-4', 'sm:scale-95');
+            datePickerContent.classList.remove('translate-y-0', 'sm:translate-y-0', 'sm:scale-100');
+        }
+
+        function renderMonthGrid() {
+            monthPickerGrid.innerHTML = '';
+            monthPickerYearDisplay.innerText = `${tempYear}年`;
+
+            for (let month = 1; month <= 12; month++) {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'py-3 rounded-xl text-sm font-bold transition-all cursor-pointer border';
+
+                if (tempYear === currentSelectedYear && month === currentSelectedMonth) {
+                    button.className += ' bg-primary text-white shadow-md border-primary';
+                } else {
+                    button.className += ' bg-surface-container-lowest text-on-surface hover:bg-surface-container-low border-surface-container-high';
+                }
+
+                button.innerText = `${month}月`;
+                button.onclick = () => {
+                    tempMonth = month;
+                    tempDay = clampDay(tempYear, tempMonth, tempDay);
+                    renderDateGrid();
+                    closeMonthPicker();
+                    openDatePicker();
+                };
+                monthPickerGrid.appendChild(button);
+            }
+        }
+
+        function renderDateGrid() {
+            datePickerGrid.innerHTML = '';
+            datePickerMonthDisplay.innerText = `${tempYear}年${tempMonth}月`;
+
+            const firstWeekday = new Date(tempYear, tempMonth - 1, 1).getDay();
+            const mondayOffset = (firstWeekday + 6) % 7;
+            const daysInMonth = new Date(tempYear, tempMonth, 0).getDate();
+
+            for (let blank = 0; blank < mondayOffset; blank += 1) {
+                const placeholder = document.createElement('div');
+                placeholder.className = 'h-11';
+                datePickerGrid.appendChild(placeholder);
+            }
+
+            for (let day = 1; day <= daysInMonth; day += 1) {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'h-11 rounded-xl text-sm font-bold transition-all cursor-pointer border';
+
+                const isSelected = tempYear === currentSelectedYear && tempMonth === currentSelectedMonth && day === currentSelectedDay;
+                if (isSelected) {
+                    button.className += ' bg-primary text-white shadow-md border-primary';
+                } else {
+                    button.className += ' bg-surface-container-lowest text-on-surface hover:bg-surface-container-low border-surface-container-high';
+                }
+
+                button.innerText = String(day);
+                button.onclick = () => {
+                    goToDate(tempYear, tempMonth, day);
+                };
+                datePickerGrid.appendChild(button);
+            }
+        }
+
+        customDatePickerBtn.addEventListener('click', () => {
+            renderMonthGrid();
+            openMonthPicker();
+        });
+
+        monthPickerBackdrop.addEventListener('click', closeMonthPicker);
+        datePickerBackdrop.addEventListener('click', closeDatePicker);
+
+        prevYearBtn.addEventListener('click', () => {
+            tempYear -= 1;
+            renderMonthGrid();
+        });
+
+        nextYearBtn.addEventListener('click', () => {
+            tempYear += 1;
+            renderMonthGrid();
+        });
+
+        monthPickerYearDisplay.addEventListener('click', () => {
+            tempYear = currentSelectedYear;
+            renderMonthGrid();
+        });
+
+        datePickerBackBtn.addEventListener('click', () => {
+            closeDatePicker();
+            openMonthPicker();
+        });
+
+        datePickerNextMonthBtn.addEventListener('click', () => {
+            tempMonth += 1;
+            if (tempMonth > 12) {
+                tempMonth = 1;
+                tempYear += 1;
+            }
+            tempDay = clampDay(tempYear, tempMonth, tempDay);
+            renderDateGrid();
+        });
+
+        datePickerMonthDisplay.addEventListener('click', () => {
+            tempYear = currentSelectedYear;
+            tempMonth = currentSelectedMonth;
+            tempDay = currentSelectedDay;
+            renderDateGrid();
+        });
+
+        rangePrevBtn.addEventListener('click', () => {
+            const target = new Date(selectedDate.getTime());
+            target.setDate(target.getDate() - 1);
+            const dateIso = `${target.getFullYear()}-${String(target.getMonth() + 1).padStart(2, '0')}-${String(target.getDate()).padStart(2, '0')}`;
+            const params = appendActiveSelection(new URLSearchParams({ date: dateIso }));
+            window.location.href = `?${params.toString()}`;
+        });
+
+        rangeNextBtn.addEventListener('click', () => {
+            const target = new Date(selectedDate.getTime());
+            target.setDate(target.getDate() + 1);
+            const dateIso = `${target.getFullYear()}-${String(target.getMonth() + 1).padStart(2, '0')}-${String(target.getDate()).padStart(2, '0')}`;
+            const params = appendActiveSelection(new URLSearchParams({ date: dateIso }));
+            window.location.href = `?${params.toString()}`;
+        });
+
+        rangeTodayBtn.addEventListener('click', () => {
+            const target = `${todayDate.getFullYear()}-${String(todayDate.getMonth() + 1).padStart(2, '0')}-${String(todayDate.getDate()).padStart(2, '0')}`;
+            const params = appendActiveSelection(new URLSearchParams({ date: target }));
+            window.location.href = `?${params.toString()}`;
+        });
+
+        const careDayStrip = document.getElementById('care-day-strip');
+        if (careDayStrip) {
+            const selectedItem = careDayStrip.querySelector('a[href="?date=' + selectedDateText + '"]');
+            if (selectedItem) {
+                selectedItem.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+            }
+        }
+    });
+</script>
+<script src="{% static 'js/index.js' %}"></script>
+{% endblock %}
