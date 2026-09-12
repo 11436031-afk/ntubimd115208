@@ -108,12 +108,14 @@ def index(request):
     pregnancy_progress = build_pregnancy_progress(pregnancy_case, today)
 
     can_view_care = True
-    #哪位user新增的提醒事項
+    can_edit_care = True
+    #哪位user新增的代辦清單
     care_queryset = CareRecord.objects.select_related('carestatus', 'user').order_by('recordtime', 'carerecord_id')
     if pregnancy_case:
         if pregnancy_case.user_id != current_user.user_id:
             membership = FamilyMember.objects.filter(pregnancycase=pregnancy_case, user=current_user).first()
             can_view_care = baby_utils.has_permission(membership, 'care_records', 'view', default='view')
+            can_edit_care = baby_utils.has_permission(membership, 'care_records', 'edit', default='view')
         care_queryset = care_queryset.filter(pregnancycase=pregnancy_case) if can_view_care else care_queryset.none()
     else:
         # 還沒有任何 active case 時退回舊行為，避免整段壞掉
@@ -188,5 +190,6 @@ def index(request):
         'active_baby': active_baby,
         'current_user': current_user,
         'can_view_care': can_view_care,
+        'can_edit_care': can_edit_care,
     }
     return render(request, 'index/index.html', context)

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CoLoGrowth 寶寶成長里程碑圖卡</title>
+    
+    <!-- Open Graph Metadata for LINE Preview -->
+    <meta property="og:type" content="article" />
+    <meta property="og:title" content="🏆 CoLoGrowth 成長里程碑圖卡" />
+    <meta property="og:description" content="陪伴寶寶健康快樂地長大！點擊查看寶寶的精美里程碑圖卡 🧸" />
+    <meta property="og:image" content="{{ image_url }}" />
+    <meta property="og:image:secure_url" content="{{ image_url }}" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="800" />
+    <meta property="og:image:height" content="1000" />
+    
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="🏆 CoLoGrowth 成長里程碑圖卡" />
+    <meta name="twitter:description" content="陪伴寶寶健康快樂地長大！點擊查看寶寶的精美里程碑圖卡 🧸" />
+    <meta name="twitter:image" content="{{ image_url }}" />
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 24px;
+            min-height: 100vh;
+            background-color: #FFF0F2;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .card-container {
+            max-width: 480px;
+            width: 100%;
+            background: white;
+            padding: 16px;
+            border-radius: 24px;
+            box-shadow: 0 12px 32px rgba(125, 60, 73, 0.15);
+            text-align: center;
+        }
+        .card-image {
+            width: 100%;
+            height: auto;
+            border-radius: 16px;
+            display: block;
+        }
+        .title {
+            color: #7D3C49;
+            font-size: 18px;
+            font-weight: bold;
+            margin-top: 16px;
+            margin-bottom: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="card-container">
+        <img src="{{ image_url }}" alt="寶寶成長里程碑圖卡" class="card-image">
+        <div class="title">CoLoGrowth 智慧育兒助手 🧸</div>
+    </div>
+</body>
+</html>

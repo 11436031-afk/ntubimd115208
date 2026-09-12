@@ -1,7 +1,7 @@
 {% extends 'base/base.html' %}
 {% load static %}
 
-{% block title %}歷史回顧 (第二版) - 回憶牆{% endblock %}
+{% block title %}歷史回顧 (第三版) - 回憶牆{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -12,7 +12,7 @@
 
 {% block content %}
 <div class="bg-background min-h-screen text-on-surface">
-    <!-- Version 2 Top Navigation Tab Bar & Back to Home -->
+    <!-- Version 3 Top Navigation Tab Bar & Back to Home -->
     <div class="max-w-md md:max-w-xl mx-auto px-4 pt-5 pb-2 space-y-3">
         <!-- 返回首頁按鈕 -->
         <div class="flex items-center justify-between">
@@ -20,17 +20,17 @@
                 <span class="material-symbols-outlined text-[18px] group-hover:-translate-x-0.5 transition-transform">arrow_back</span>
                 <span>返回首頁</span>
             </a>
-            <span class="text-[11px] font-bold text-[#65518a] bg-[#EDE5F5] px-3 py-1 rounded-full border border-[#E8E0EF]">歷史回顧（第二版）</span>
+            <span class="text-[11px] font-bold text-[#65518a] bg-[#EDE5F5] px-3 py-1 rounded-full border border-[#E8E0EF]">歷史回顧（第三版）</span>
         </div>
 
         <div class="grid grid-cols-3 bg-[#EDE5F5]/80 p-1.5 rounded-full border border-[#E8E0EF] shadow-2xs backdrop-blur-md">
-            <a href="/s/{% if active_selection_query %}?{{ active_selection_query }}{% endif %}" class="py-2.5 px-3 rounded-full text-xs sm:text-sm font-bold text-center transition-all duration-300 {% if active_v2_tab == 's' %}text-white bg-[#65518a] shadow-xs{% else %}text-[#4A4052] hover:text-[#65518a]{% endif %}">
+            <a href="{% url 'history_review_v3' %}" class="py-2.5 px-3 rounded-full text-xs sm:text-sm font-bold text-center transition-all duration-300 text-[#4A4052] hover:text-[#65518a]">
                 階段總結
             </a>
-            <a href="/1/{% if active_selection_query %}?{{ active_selection_query }}{% endif %}" class="py-2.5 px-3 rounded-full text-xs sm:text-sm font-bold text-center transition-all duration-300 {% if active_v2_tab == '1' %}text-white bg-[#65518a] shadow-xs{% else %}text-[#4A4052] hover:text-[#65518a]{% endif %}">
-                AI 成長足跡
+            <a href="{% url 'history_review_v3_baby_growth' %}" class="py-2.5 px-3 rounded-full text-xs sm:text-sm font-bold text-center transition-all duration-300 text-[#4A4052] hover:text-[#65518a]">
+                紀念冊
             </a>
-            <a href="/m/{% if active_selection_query %}?{{ active_selection_query }}{% endif %}" class="py-2.5 px-3 rounded-full text-xs sm:text-sm font-bold text-center transition-all duration-300 {% if active_v2_tab == 'm' %}text-white bg-[#65518a] shadow-xs{% else %}text-[#4A4052] hover:text-[#65518a]{% endif %}">
+            <a href="{% url 'history_review_v3_memory_wall' %}" class="py-2.5 px-3 rounded-full text-xs sm:text-sm font-bold text-center transition-all duration-300 text-white bg-[#65518a] shadow-xs">
                 回憶牆
             </a>
         </div>
@@ -155,7 +155,7 @@
                     <h3 class="text-2xl font-bold text-white font-['Plus_Jakarta_Sans'] mb-2">AI 分享卡</h3>
                     <p class="text-white/80 text-sm max-w-xs mb-8 leading-relaxed font-['Be_Vietnam_Pro']">讓 AI 為您精選本月最動人的瞬間，生成專屬的成長紀念報，與親友分享這份喜悅。</p>
                     <a href="{% url 'social_sharing_card' %}" class="bg-white text-[#65518a] px-8 py-3 rounded-full font-bold text-sm shadow-lg hover:scale-105 active:scale-95 transition-all flex items-center gap-2 cursor-pointer">
-                        立即生成分享卡
+                        離即生成分享卡
                         <span class="material-symbols-outlined text-lg">arrow_forward</span>
                     </a>
                 </div>

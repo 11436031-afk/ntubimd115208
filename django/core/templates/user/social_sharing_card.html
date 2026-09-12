@@ -814,22 +814,83 @@
             showToast("圖卡已下載至您的裝置 📁");
         });
 
-        // Share to LINE logic
+        // Share to LINE logic - Always open White LINE Share window (social-plugins.line.me) with OpenGraph image preview
         btnShareLine.addEventListener('click', function() {
-            // Because standard LINE sharing can take a URL, we will copy a share link or prompt the user.
-            // Locally we can construct a nice share message.
-            const babyName = inputBabyName.value || '寶寶';
-            const milestone = inputMilestoneTitle.value || '里程碑';
-            const age = inputBabyAge.value || '';
-            const shareText = `【CoLoGrowth 成長里程碑分享卡】\n我家 ${babyName} (${age}) 達成新成就了：${milestone}！快來看看精美的小卡吧！`;
+            showToast("正在準備圖卡並開啟 LINE... ⏳");
             
-            // Encode the text
-            const lineUrl = `https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(window.location.origin)}&text=${encodeURIComponent(shareText)}`;
-            
-            // Open window
-            window.open(lineUrl, '_blank');
-            showToast("已為您打開 LINE 分享頁面 💬");
+            const dataUrl = canvas.toDataURL('image/png');
+            const formData = new FormData();
+            formData.append('image_data', dataUrl);
+
+            // Copy image to clipboard as fallback so user can Ctrl+V in chat room
+            canvas.toBlob(async function(blob) {
+                if (navigator.clipboard && window.ClipboardItem && blob) {
+                    try {
+                        await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+                    } catch (e) {}
+                }
+            }, 'image/png');
+
+            const isLocalhost = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+            if (isLocalhost) {
+                // On localhost, upload image blob to temporary public host so LINE's cloud crawler can render the image preview in the white window!
+                canvas.toBlob(function(blob) {
+                    const uploadData = new FormData();
+                    uploadData.append('file', blob, 'milestone_card.png');
+
+                    fetch('https://tmpfiles.org/api/v1/upload', {
+                        method: 'POST',
+                        body: uploadData
+                    })
+                    .then(res => res.json())
+                    .then(resData => {
+                        if (resData && resData.data && resData.data.url) {
+                            const directImageUrl = resData.data.url.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
+                            const lineShareUrl = `https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(directImageUrl)}`;
+                            window.open(lineShareUrl, '_blank', 'width=550,height=650,resizable=yes,scrollbars=yes');
+                            showToast("已成功開啟 LINE 圖卡預覽視窗！ 💬");
+                        } else {
+                            throw new Error("Public upload failed");
+                        }
+                    })
+                    .catch(err => {
+                        console.error("Temp upload failed, using local Django API:", err);
+                        fallbackLocalUpload();
+                    });
+                }, 'image/png');
+            } else {
+                fallbackLocalUpload();
+            }
+
+            function fallbackLocalUpload() {
+                fetch('/api/upload_sharing_card/', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(res => res.json())
+                .then(data => {
+                    const targetUrl = (data.status === 'success' && data.share_page_url) ? data.share_page_url : window.location.href;
+                    const lineShareUrl = `https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(targetUrl)}`;
+                    window.open(lineShareUrl, '_blank', 'width=550,height=650,resizable=yes,scrollbars=yes');
+                    showToast("已成功開啟 LINE 分享視窗！ 💬");
+                })
+                .catch(err => {
+                    console.error("Upload card failed:", err);
+                    const lineShareUrl = `https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(window.location.href)}`;
+                    window.open(lineShareUrl, '_blank', 'width=550,height=650,resizable=yes,scrollbars=yes');
+                    showToast("已開啟 LINE 分享視窗 💬");
+                });
+            }
         });
+
+
+
+
+
+
+
+
 
         // Native share or clipboard copy
         btnShareNative.addEventListener('click', function() {

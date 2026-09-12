@@ -55,11 +55,13 @@
             </div>
             <!-- 第 56-59 行 -->
             {% if can_edit_baby %}
-            <a href="{% url 'edit_baby_information' %}"
-               class="inline-flex items-center gap-2 mt-3 px-5 py-2.5 bg-primary/10 hover:bg-primary/20 text-primary text-sm font-bold rounded-2xl transition-all active:scale-95 duration-200 shadow-sm border border-primary/10">
-                <span class="material-symbols-outlined text-[18px]" style="font-variation-settings:'FILL' 1,'wght' 600">edit</span>
-                編輯嬰幼兒資料
-            </a>
+            <div class="flex justify-center mt-3">
+                <a href="{% url 'edit_baby_information' %}"
+                   class="inline-flex items-center gap-2 px-5 py-2.5 bg-primary/10 hover:bg-primary/20 text-primary text-sm font-bold rounded-2xl transition-all active:scale-95 duration-200 shadow-sm border border-primary/10">
+                    <span class="material-symbols-outlined text-[18px]" style="font-variation-settings:'FILL' 1,'wght' 600">edit</span>
+                    編輯嬰幼兒資料
+                </a>
+            </div>
             {% endif %}
         </section>
         <!-- Component 2: Growth Calendar -->
@@ -183,11 +185,13 @@
                                     {% if is_overdue %}請確認出生狀態，並填寫出生日期以繼續記錄成長。{% else %}填寫出生日期後才能新增成長紀錄。{% endif %}
                                 </p>
                             </div>
+                            {% if can_edit_baby %}
                             <a href="{% url 'edit_baby_information' %}"
                             class="mt-1 {% if is_overdue %}bg-red-500{% else %}bg-primary{% endif %} text-white px-6 py-2.5 rounded-full text-sm font-bold shadow-md flex items-center gap-2 hover:scale-105 active:scale-95 transition-all">
                                 <span class="material-symbols-outlined text-sm">edit_calendar</span>
                                 填寫出生日期
                             </a>
+                            {% endif %}
                         </div>
                         {% else %}
                         <!-- 已出生但這天沒紀錄：原本的新增紀錄區塊 -->
@@ -197,18 +201,12 @@
                             </div>
                             <div>
                                 <h4 class="text-on-surface font-bold text-base">這一天沒有紀錄</h4>
-                                <p class="text-on-surface-variant text-xs mt-1">為這天新增一筆成長紀錄吧！</p>
+                                <p class="text-on-surface-variant text-xs mt-1">{% if can_edit_baby %}為這天新增一筆成長紀錄吧！{% else %}養育者尚未新增這天的成長紀錄。{% endif %}</p>
                             </div>
                             {% if can_edit_baby %}
                             <button onclick="navigateToAddRecord('{% url 'add_baby_record' %}?date={{ selected_date_iso }}', '{{ selected_date_iso }}')"
                                     class="mt-1 bg-primary text-white px-6 py-2.5 rounded-full text-sm font-bold shadow-md shadow-primary/20 flex items-center gap-2 hover:scale-105 active:scale-95 transition-all" type="button">
                                 <span class="material-symbols-outlined text-sm">add</span>
-                                新增紀錄
-                            </button>
-                            {% else %}
-                            <button onclick="showNoPermissionToast()"
-                                    class="mt-1 bg-surface-container-high text-on-surface-variant px-6 py-2.5 rounded-full text-sm font-bold flex items-center gap-2 cursor-pointer" type="button">
-                                <span class="material-symbols-outlined text-sm">lock</span>
                                 新增紀錄
                             </button>
                             {% endif %}

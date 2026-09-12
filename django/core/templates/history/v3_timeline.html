@@ -1,7 +1,7 @@
 {% extends 'base/base.html' %}
 {% load static %}
 
-{% block title %}歷史回顧 (第二版) - 階段總結{% endblock %}
+{% block title %}歷史回顧 (第三版) - 階段總結{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -12,7 +12,7 @@
 
 {% block content %}
 <div class="bg-background min-h-screen text-on-surface">
-    <!-- Version 2 Top Navigation Tab Bar & Back to Home -->
+    <!-- Version 3 Top Navigation Tab Bar & Back to Home -->
     <div class="max-w-md md:max-w-xl mx-auto px-4 pt-5 pb-2 space-y-3">
         <!-- 返回首頁按鈕 -->
         <div class="flex items-center justify-between">
@@ -20,17 +20,17 @@
                 <span class="material-symbols-outlined text-[18px] group-hover:-translate-x-0.5 transition-transform">arrow_back</span>
                 <span>返回首頁</span>
             </a>
-            <span class="text-[11px] font-bold text-[#65518a] bg-[#EDE5F5] px-3 py-1 rounded-full border border-[#E8E0EF]">歷史回顧（第二版）</span>
+            <span class="text-[11px] font-bold text-[#65518a] bg-[#EDE5F5] px-3 py-1 rounded-full border border-[#E8E0EF]">歷史回顧（第三版）</span>
         </div>
 
         <div class="grid grid-cols-3 bg-[#EDE5F5]/80 p-1.5 rounded-full border border-[#E8E0EF] shadow-2xs backdrop-blur-md">
-            <a href="/s/{% if active_selection_query %}?{{ active_selection_query }}{% endif %}" class="py-2.5 px-3 rounded-full text-xs sm:text-sm font-bold text-center transition-all duration-300 {% if active_v2_tab == 's' %}text-white bg-[#65518a] shadow-xs{% else %}text-[#4A4052] hover:text-[#65518a]{% endif %}">
+            <a href="{% url 'history_review_v3' %}" class="py-2.5 px-3 rounded-full text-xs sm:text-sm font-bold text-center transition-all duration-300 text-white bg-[#65518a] shadow-xs">
                 階段總結
             </a>
-            <a href="/1/{% if active_selection_query %}?{{ active_selection_query }}{% endif %}" class="py-2.5 px-3 rounded-full text-xs sm:text-sm font-bold text-center transition-all duration-300 {% if active_v2_tab == '1' %}text-white bg-[#65518a] shadow-xs{% else %}text-[#4A4052] hover:text-[#65518a]{% endif %}">
-                AI 成長足跡
+            <a href="{% url 'history_review_v3_baby_growth' %}" class="py-2.5 px-3 rounded-full text-xs sm:text-sm font-bold text-center transition-all duration-300 text-[#4A4052] hover:text-[#65518a]">
+                紀念冊
             </a>
-            <a href="/m/{% if active_selection_query %}?{{ active_selection_query }}{% endif %}" class="py-2.5 px-3 rounded-full text-xs sm:text-sm font-bold text-center transition-all duration-300 {% if active_v2_tab == 'm' %}text-white bg-[#65518a] shadow-xs{% else %}text-[#4A4052] hover:text-[#65518a]{% endif %}">
+            <a href="{% url 'history_review_v3_memory_wall' %}" class="py-2.5 px-3 rounded-full text-xs sm:text-sm font-bold text-center transition-all duration-300 text-[#4A4052] hover:text-[#65518a]">
                 回憶牆
             </a>
         </div>
@@ -140,63 +140,6 @@
                         <div class="flex items-center text-xs font-medium text-[#5b5c5a]"><span class="w-2 h-2 rounded-full bg-[#65518a] mr-1.5"></span>快樂</div>
                         <div class="flex items-center text-xs font-medium text-[#5b5c5a]"><span class="w-2 h-2 rounded-full bg-[#b2e4fb] mr-1.5"></span>平靜</div>
                         <div class="flex items-center text-xs font-medium text-[#5b5c5a]"><span class="w-2 h-2 rounded-full bg-[#e3e3df] mr-1.5"></span>焦慮</div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Milestone Summary Cards -->
-        <section class="space-y-6">
-            <h3 class="text-lg font-bold px-1 flex items-center text-[#362459] font-['Plus_Jakarta_Sans']">
-                <span class="w-1.5 h-5 bg-[#f8bbd0] rounded-full mr-2.5"></span>
-                成長精華
-            </h3>
-            <!-- Milestone Card 1 -->
-            <div class="bg-surface-container-lowest rounded-3xl overflow-hidden shadow-xs border border-surface-container-high">
-                <div class="p-6">
-                    <div class="flex items-center justify-between mb-4">
-                        <span class="text-xs font-bold tracking-widest text-[#65518a] uppercase bg-[#d6beff]/30 px-3 py-1 rounded-full">Phase One</span>
-                        <span class="material-symbols-outlined text-[#65518a]">auto_awesome</span>
-                    </div>
-                    <h4 class="text-2xl font-bold text-[#362459] mb-3">孕期畢業報告</h4>
-                    <p class="text-[#5b5c5a] leading-relaxed text-sm font-medium">恭喜完成 40 週陪伴旅程！妳成功記錄了每一個胎動、每一次產檢，這是一份屬於妳與寶寶最珍貴的初見禮物。</p>
-                </div>
-                <div class="h-48 relative">
-                    <div class="absolute inset-0 bg-gradient-to-t from-surface-container-lowest to-transparent z-10"></div>
-                    <img class="w-full h-full object-cover" data-alt="Soft ethereal孕期畢業精華插圖" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCYJlE-LLtDdr5xLzlfjtN6xW9rgfD8RNadoyfkuhDWHNtUR3rpVh5tYTFlyB0sR-lPV0iZm2acbsG72580O4zHaCcj-xXdPGCgymXj5SDtu4v8uaQ6s_LWAc4DY4D5YWGWhQWGgwKkfIM2u6BUcP43rYBFs2ri_NUtleiCHFuAudYi9QLe1SNTtoV8AH1lCljqEC0wjr5XQo6CeUl6eDzUnRuLUY6bk_wgWm7HuPFNop_7qfsETW9xOA">
-                </div>
-            </div>
-
-            <!-- Milestone Card 2 -->
-            <div class="bg-surface-container-lowest rounded-3xl p-6 shadow-xs border border-surface-container-high">
-                <div class="flex items-start justify-between mb-6">
-                    <div>
-                        <h4 class="text-2xl font-bold text-[#362459] mb-1">周歲成長精華</h4>
-                        <p class="text-xs text-[#5b5c5a] font-medium">寶寶的第一年紀錄</p>
-                    </div>
-                    <div class="bg-[#f8bbd0]/30 w-12 h-12 rounded-2xl flex items-center justify-center">
-                        <span class="material-symbols-outlined text-[#7d4d5f]">child_care</span>
-                    </div>
-                </div>
-                <div class="grid grid-cols-2 gap-4 mb-6">
-                    <div class="p-4 bg-surface-container-low/60 rounded-2xl">
-                        <p class="text-xs text-[#5b5c5a] font-medium mb-2">身高成長曲線</p>
-                        <div class="h-10 flex items-end gap-1.5">
-                            <div class="flex-1 bg-[#7d4d5f] h-[40%] rounded-sm opacity-30"></div>
-                            <div class="flex-1 bg-[#7d4d5f] h-[60%] rounded-sm opacity-50"></div>
-                            <div class="flex-1 bg-[#7d4d5f] h-[80%] rounded-sm opacity-70"></div>
-                            <div class="flex-1 bg-[#7d4d5f] h-[100%] rounded-sm"></div>
-                        </div>
-                    </div>
-                    <div class="p-4 bg-surface-container-low/60 rounded-2xl flex flex-col justify-center">
-                        <p class="text-xs text-[#5b5c5a] font-medium mb-1">體重變化</p>
-                        <p class="text-lg font-bold text-[#7d4d5f]">+7.2 kg</p>
-                    </div>
-                </div>
-                <div class="aspect-video w-full bg-surface-container-low/40 rounded-2xl border-2 border-dashed border-surface-container-high flex flex-col items-center justify-center overflow-hidden group hover:bg-surface-container-low transition-colors cursor-pointer">
-                    <div class="text-center p-6 group-hover:scale-105 transition-transform">
-                        <span class="material-symbols-outlined text-3xl text-[#65518a] mb-2">add_a_photo</span>
-                        <p class="text-xs font-semibold text-[#5b5c5a]">點擊上傳「第一個生日照片」</p>
                     </div>
                 </div>
             </div>
