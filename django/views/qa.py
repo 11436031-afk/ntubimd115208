@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 ACTIVE_CONVERSATION_SESSION_KEY = "qa_active_conversation_id"
 # DEFAULT_N8N_RAG_WEBHOOK_URL = "http://localhost:5678/webhook/b2489eda-0b01-425d-be17-3c817fb4cdcd"
-DEFAULT_N8N_RAG_WEBHOOK_URL = "https://cologrowth18.app.n8n.cloud/webhook/b2489eda-0b01-425d-be17-3c817fb4cdcd"
+DEFAULT_N8N_RAG_WEBHOOK_URL = "https://kathy1023.app.n8n.cloud/webhook/b2489eda-0b01-425d-be17-3c817fb4cdcd"
 
 EXPECTED_N8N_RAG_WEBHOOK_PATH = "/webhook/b2489eda-0b01-425d-be17-3c817fb4cdcd"
 
