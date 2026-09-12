@@ -138,12 +138,26 @@ def pregnancyrecord(request):
 
     raw = request.GET.get('date')
 
-    try:
-        selected_date = datetime.date.fromisoformat(raw) if raw else datetime.date.today()
-    except Exception:
-        selected_date = datetime.date.today()
-
     today_date = datetime.date.today()
+
+    try:
+        selected_date = datetime.date.fromisoformat(raw) if raw else None
+    except Exception:
+        selected_date = None
+
+    if not selected_date:
+        scope_records = _records_for_scope(pregnancy_case, current_user)
+        has_this_month = scope_records.filter(
+            check_date__year=today_date.year, check_date__month=today_date.month
+        ).exists()
+        if has_this_month:
+            selected_date = today_date
+        else:
+            latest_rec = scope_records.order_by('-check_date').first()
+            if latest_rec and latest_rec.check_date:
+                selected_date = latest_rec.check_date
+            else:
+                selected_date = today_date
 
     year = selected_date.year
     month = selected_date.month

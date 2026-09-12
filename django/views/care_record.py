@@ -51,7 +51,7 @@ def add_care_reminder(request):
         try:
             rd = datetime.date.fromisoformat(form_data['record_date'])
             rt = datetime.time.fromisoformat(form_data['record_time'])
-            record_dt = datetime.datetime.combine(rd, rt)
+            record_dt = timezone.make_aware(datetime.datetime.combine(rd, rt), ZoneInfo('Asia/Taipei'))
         except Exception:
             error_message = '請提供有效的日期與時間。'
 
@@ -110,10 +110,12 @@ def edit_care_reminder(request):
     selected_date = _parse_selected_date(request.GET.get('date') or request.POST.get('selected_date'))
     error_message = None
 
+    orig_local_dt = timezone.localtime(care_record.recordtime)
+
     if request.method == 'POST':
         form_data = {
             'record_date': request.POST.get('record_date', ''),
-            'record_time': request.POST.get('record_time', ''),
+            'record_time': request.POST.get('record_time', '') or orig_local_dt.time().strftime('%H:%M'),
             'carestatus_id': request.POST.get('carestatus_id', ''),
             'content': request.POST.get('content', ''),
         }
@@ -121,7 +123,7 @@ def edit_care_reminder(request):
         try:
             rd = datetime.date.fromisoformat(form_data['record_date'])
             rt = datetime.time.fromisoformat(form_data['record_time'])
-            record_dt = datetime.datetime.combine(rd, rt)
+            record_dt = timezone.make_aware(datetime.datetime.combine(rd, rt), ZoneInfo('Asia/Taipei'))
         except Exception:
             error_message = '請提供有效的日期與時間。'
 
@@ -148,11 +150,11 @@ def edit_care_reminder(request):
             'form_data': form_data,
         })
 
-    # GET：帶入既有資料作為表單預設值
+    # GET：帶入既有資料作為表單預設值（確保使用本地時間，避免時區偏差）
     carestatus_list = list(CareStatus.objects.all())
     form_data = {
-        'record_date': care_record.recordtime.date().isoformat(),
-        'record_time': care_record.recordtime.time().strftime('%H:%M'),
+        'record_date': orig_local_dt.date().isoformat(),
+        'record_time': orig_local_dt.time().strftime('%H:%M'),
         'carestatus_id': str(care_record.carestatus_id) if care_record.carestatus_id else '',
         'content': care_record.content or '',
     }

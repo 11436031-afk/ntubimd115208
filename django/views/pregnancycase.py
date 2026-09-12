@@ -272,11 +272,31 @@ def resolve_active_pregnancy_case(request, user):
         if case:
             return case
 
+    active_baby_id = request.session.get('active_baby_id')
+    if active_baby_id:
+        try:
+            baby = BabyInformation.objects.select_related('pregnancycase').filter(
+                baby_id=int(active_baby_id),
+            ).first()
+            if baby and baby.pregnancycase and (baby.pregnancycase.user == user or FamilyMember.objects.filter(pregnancycase=baby.pregnancycase, user=user).exists()):
+                request.session['active_case_id'] = baby.pregnancycase_id
+                return baby.pregnancycase
+        except (ValueError, TypeError):
+            pass
+
     cases = _get_all_cases()
+    # Prioritize cases that have born babies or existing records
+    for case in cases:
+        if case.babyinformation_set.filter(birthdaytime__isnull=False).exists():
+            request.session['active_case_id'] = case.pregnancycase_id
+            b = get_case_display_baby(case)
+            if b:
+                request.session['active_baby_id'] = b.baby_id
+            return case
+
     for case in cases:
         if is_pregnancy_ongoing(case):
             request.session['active_case_id'] = case.pregnancycase_id
-            request.session.pop('active_baby_id', None)
             return case
 
     if cases:
@@ -530,18 +550,6 @@ def baby_switcher(request):
 
     active_baby_id = request.session.get('active_baby_id')
     active_case_id = request.session.get('active_case_id')
-
-    if '/pregnancyrecord' in request.path:
-        ongoing_case_ids = {
-            c.pregnancycase_id for c in cases
-            if is_pregnancy_ongoing(c)
-        }
-        ongoing_items = [
-            item for item in switcher_items
-            if item.get('case_id') in ongoing_case_ids
-        ]
-        if ongoing_items:
-            switcher_items = ongoing_items
 
     if '/babyinformation' in request.path or '/babyrecord' in request.path or '/babygrowthmap' in request.path:
         switcher_items = [item for item in switcher_items if item.get('is_baby')]

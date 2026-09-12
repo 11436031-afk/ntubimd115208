@@ -1,7 +1,7 @@
 {% extends 'base/base.html' %}
 {% load static %}
 
-{% block title %}歷史回顧 (第三版) - 階段總結{% endblock %}
+{% block title %}歷史回顧 - 階段總結{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -20,7 +20,7 @@
                 <span class="material-symbols-outlined text-[18px] group-hover:-translate-x-0.5 transition-transform">arrow_back</span>
                 <span>返回首頁</span>
             </a>
-            <span class="text-[11px] font-bold text-[#65518a] bg-[#EDE5F5] px-3 py-1 rounded-full border border-[#E8E0EF]">歷史回顧（第三版）</span>
+            <span class="text-[11px] font-bold text-[#65518a] bg-[#EDE5F5] px-3 py-1 rounded-full border border-[#E8E0EF]">歷史回顧</span>
         </div>
 
         <div class="grid grid-cols-3 bg-[#EDE5F5]/80 p-1.5 rounded-full border border-[#E8E0EF] shadow-2xs backdrop-blur-md">
@@ -56,7 +56,7 @@
                 </div>
                 <div>
                     <p class="text-[#4b386e] text-xs font-semibold mb-0.5">陪伴天數</p>
-                    <p class="text-3xl font-black font-['Plus_Jakarta_Sans'] text-[#362459]">280 <span class="text-sm font-normal">Days</span></p>
+                    <p class="text-3xl font-black font-['Plus_Jakarta_Sans'] text-[#362459]">{{ stats.days_accompanied|default:"280" }} <span class="text-sm font-normal">Days</span></p>
                 </div>
             </div>
             <!-- Stat 2 -->
@@ -67,8 +67,8 @@
                     </div>
                 </div>
                 <div>
-                    <p class="text-[#1f5467] text-xs font-semibold mb-0.5">超音波照片</p>
-                    <p class="text-3xl font-black font-['Plus_Jakarta_Sans'] text-[#014154]">48 <span class="text-sm font-normal">Photos</span></p>
+                    <p class="text-[#1f5467] text-xs font-semibold mb-0.5">超音波與成長照</p>
+                    <p class="text-3xl font-black font-['Plus_Jakarta_Sans'] text-[#014154]">{{ stats.total_photos|default:"8" }} <span class="text-sm font-normal">Photos</span></p>
                 </div>
             </div>
             <!-- Stat 3 -->
@@ -79,8 +79,8 @@
                     </div>
                 </div>
                 <div>
-                    <p class="text-[#623648] text-xs font-semibold mb-0.5">成長里程碑</p>
-                    <p class="text-3xl font-black font-['Plus_Jakarta_Sans'] text-[#4b2334]">12 <span class="text-sm font-normal">Tasks</span></p>
+                    <p class="text-[#623648] text-xs font-semibold mb-0.5">成長紀錄筆數</p>
+                    <p class="text-3xl font-black font-['Plus_Jakarta_Sans'] text-[#4b2334]">{{ stats.mom_record_count|default:"12" }} <span class="text-sm font-normal">Records</span></p>
                 </div>
             </div>
             <!-- Stat 4 -->
@@ -92,7 +92,7 @@
                 </div>
                 <div>
                     <p class="text-amber-900/70 text-xs font-semibold mb-0.5">Growth AI</p>
-                    <p class="text-3xl font-black font-['Plus_Jakarta_Sans'] text-amber-900">35 <span class="text-sm font-normal">Q&As</span></p>
+                    <p class="text-3xl font-black font-['Plus_Jakarta_Sans'] text-amber-900">{{ stats.ai_qa_count|default:"35" }} <span class="text-sm font-normal">Q&As</span></p>
                 </div>
             </div>
         </section>
