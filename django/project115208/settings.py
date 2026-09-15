@@ -69,9 +69,11 @@ SOCIALACCOUNT_PROVIDERS = {
         'APP': {
             # 沿用最下面已經有的 GOOGLE_CLIENT_ID（舊版 google_auth_login 也是用同一組）
             'client_id': '1005276403057-p67ocf8c13e5121akigm7sq93l7db7s2.apps.googleusercontent.com',
-            # 🚨 請到 Google Cloud Console > API 和服務 > 憑證，找到這個 OAuth Client ID
-            # 對應的「用戶端密碼 (Client secret)」填進來，否則 /accounts/google/login/ 一樣會出錯。
-            'secret': '請填入 Google OAuth Client Secret',
+            # 🚨🚨 這裡務必換成真正的密鑰！ 🚨🚨
+            # 前往 Google Cloud Console > API 和服務 > 憑證，點進這組 OAuth 用戶端 ID，
+            # 複製「用戶端密碼 (Client secret)」貼在這裡。這是私密金鑰，
+            # 千萬不要把換好密鑰後的 settings.py 貼到公開群組或推上公開 git repo。
+            'secret': '請貼上你從 Google Cloud Console 複製的真正 Client Secret',
             'key': ''
         }
     }

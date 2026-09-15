@@ -2,6 +2,8 @@ import json
 import logging
 
 from django.conf import settings
+from django.contrib.auth import get_user_model
+from django.contrib.auth import login as django_login
 from django.db import transaction
 from django.db.models import Max
 from django.dispatch import receiver
@@ -67,6 +69,34 @@ def _resolve_user_profile_for_social_binding(request, social_account, provider, 
             return user_profile
 
     return None
+
+
+def _sync_django_auth_session(request, user_profile):
+    """Ensure request.user is a real, authenticated Django auth user.
+
+    Our custom login paths (GSI credential POST, LINE via allauth) all write to our own
+    `UserProfile` model and to custom session keys (`user_id`, `user_email`, ...), but they
+    don't always go through `django.contrib.auth.login()`. allauth's own flows -- most
+    importantly the "bind account" / `process=connect` flow used on the profile page --
+    rely on the real `request.user` to know who is currently logged in. Without this,
+    `request.user` stays AnonymousUser even though our app considers the person logged in,
+    and allauth's connect flow fails with "第三方帳號登入失敗".
+
+    This creates/reuses a matching `auth.User` row (keyed by email) and calls the real
+    Django login, so both our custom session and allauth's session agree on who is logged in.
+    """
+    if not user_profile.email:
+        return
+
+    User = get_user_model()
+    auth_user, _ = User.objects.get_or_create(
+        username=user_profile.email,
+        defaults={
+            'email': user_profile.email,
+            'first_name': (user_profile.name or '')[:30],
+        },
+    )
+    django_login(request, auth_user, backend='django.contrib.auth.backends.ModelBackend')
 
 
 def login_page(request):
@@ -205,6 +235,11 @@ def google_auth_login(request):
             user_profile.save(force_insert=True)
         # 已存在的 UserProfile：不再覆寫 name/line_id/avatar 等欄位，
         # 僅在首次建立帳號時才會寫入這些從 Google 帳號取得的資訊。
+
+    # 🔑 補上真正的 Django auth 登入，讓 request.user 有值。
+    # 沒有這一步，allauth 的「帳號綁定 (process=connect)」流程會找不到目前登入的使用者，
+    # 導致點擊「綁定 Google/LINE」時出現「第三方帳號登入失敗」。
+    _sync_django_auth_session(request, user_profile)
 
     request.session['user_id'] = str(user_profile.user_id)
     request.session['user_email'] = user_profile.email
