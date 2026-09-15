@@ -170,13 +170,21 @@ def baby(request):
     for record in records:
         record.milestones, record.note_text = baby_utils.split_note_and_milestones(record)
 
+    raw_date = request.GET.get('date', '')
+    today = datetime.date.today()
     try:
         selected_date = (
-            datetime.date.fromisoformat(request.GET.get('date', ''))
-            if request.GET.get('date') else datetime.date.today()
+            datetime.date.fromisoformat(raw_date)
+            if raw_date else today
         )
     except Exception:
-        selected_date = datetime.date.today()
+        selected_date = today
+
+    if not raw_date and records:
+        has_today = any((r.date.date() if hasattr(r.date, 'date') else r.date) == today for r in records)
+        if not has_today:
+            latest_r = records[0]
+            selected_date = latest_r.date.date() if hasattr(latest_r.date, 'date') else latest_r.date
 
     filled_records = _fill_forward_growth_data(records)
     filled_by_date = {item['date']: item for item in filled_records}

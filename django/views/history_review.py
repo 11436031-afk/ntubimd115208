@@ -21,6 +21,7 @@ from core.models import (
     UserProfile,
 )
 from views.pregnancycase import (
+    get_case_display_baby,
     get_gestation_parts,
     get_lmp_date,
     is_pregnancy_ongoing,
@@ -81,32 +82,48 @@ def _calc_stats(current_user, pregnancy_case, active_baby, today):
         if first_preg and first_preg.check_date:
             days_accompanied = max(0, (today - first_preg.check_date).days)
 
-    total_ultrasounds = Prenatalrecord.objects.filter(
-        pregnancyrecord__user=current_user, photo__isnull=False
-    ).exclude(photo='').count()
+    target_uid = pregnancy_case.user_id if pregnancy_case else current_user.user_id
 
-    total_baby_photos = BabyRecord.objects.filter(
-        baby__pregnancycase__user=current_user, photo__isnull=False
-    ).exclude(photo='').count()
+    if pregnancy_case:
+        total_ultrasounds = Prenatalrecord.objects.filter(
+            pregnancyrecord__user_id=target_uid, photo__isnull=False
+        ).exclude(photo='').count()
+        total_baby_photos = BabyRecord.objects.filter(
+            baby__pregnancycase=pregnancy_case, photo__isnull=False
+        ).exclude(photo='').count()
+        total_preg_records = PregnancyRecord.objects.filter(user_id=target_uid).count()
+        total_baby_records = BabyRecord.objects.filter(
+            baby__pregnancycase=pregnancy_case
+        ).count()
+        total_milestones = BabyStatus.objects.filter(
+            babyrecord__baby__pregnancycase=pregnancy_case
+        ).count()
+        total_tasks = CareRecord.objects.filter(
+            pregnancycase=pregnancy_case, state=True
+        ).count()
+    else:
+        total_ultrasounds = Prenatalrecord.objects.filter(
+            pregnancyrecord__user=current_user, photo__isnull=False
+        ).exclude(photo='').count()
+        total_baby_photos = BabyRecord.objects.filter(
+            baby__pregnancycase__user=current_user, photo__isnull=False
+        ).exclude(photo='').count()
+        total_preg_records = PregnancyRecord.objects.filter(user=current_user).count()
+        total_baby_records = BabyRecord.objects.filter(
+            baby__pregnancycase__user=current_user
+        ).count()
+        total_milestones = BabyStatus.objects.filter(
+            babyrecord__baby__pregnancycase__user=current_user
+        ).count()
+        total_tasks = CareRecord.objects.filter(
+            user=current_user, state=True
+        ).count()
 
     total_photos = total_ultrasounds + total_baby_photos
-
-    total_preg_records = PregnancyRecord.objects.filter(user=current_user).count()
-    total_baby_records = BabyRecord.objects.filter(
-        baby__pregnancycase__user=current_user
-    ).count()
     total_records = total_preg_records + total_baby_records
-
-    total_milestones = BabyStatus.objects.filter(
-        babyrecord__baby__pregnancycase__user=current_user
-    ).count()
 
     total_qas = QAMessage.objects.filter(
         qa_conversation__user_id=current_user, role='assistant'
-    ).count()
-
-    total_tasks = CareRecord.objects.filter(
-        user=current_user, state=True
     ).count()
 
     return {
@@ -142,6 +159,8 @@ def pregnancy_journey_view(request):
         request, current_user, fallback=has_baby_selection
     )
     pregnancy_case = resolve_active_pregnancy_case(request, current_user)
+    if not active_baby and pregnancy_case:
+        active_baby = get_case_display_baby(pregnancy_case)
     today = timezone.now().date()
 
     stats = _calc_stats(current_user, pregnancy_case, active_baby, today)
@@ -161,8 +180,9 @@ def pregnancy_journey_view(request):
     timeline_items = []
 
     # 2.1 產檢與孕期紀錄 (PregnancyRecord & Prenatalrecord)
+    target_uid = pregnancy_case.user_id if pregnancy_case else current_user.user_id
     preg_records_qs = (
-        PregnancyRecord.objects.filter(user=current_user)
+        PregnancyRecord.objects.filter(user_id=target_uid)
         .order_by('-check_date')
     )
 
@@ -191,10 +211,13 @@ def pregnancy_journey_view(request):
             metrics = []
             if prenatal.sbp and prenatal.dbp:
                 metrics.append({'label': '血壓', 'val': f'{prenatal.sbp}/{prenatal.dbp} mmHg'})
-            if prenatal.weight or rec.weight:
-                metrics.append({'label': '體重', 'val': f'{prenatal.weight or rec.weight} kg'})
-            if prenatal.fetus_heart_rate:
-                metrics.append({'label': '胎心率', 'val': f'{prenatal.fetus_heart_rate} bpm'})
+            if rec.weight:
+                metrics.append({'label': '體重', 'val': f'{rec.weight} kg'})
+            f_rate = getattr(prenatal, 'fetal_heart_rate', None) or getattr(prenatal, 'fetus_heart_rate', None)
+            if f_rate:
+                metrics.append({'label': '胎心率', 'val': f'{f_rate} bpm'})
+            if getattr(prenatal, 'edema', None) and prenatal.edema != '-':
+                metrics.append({'label': '水腫', 'val': prenatal.edema})
 
             timeline_items.append({
                 'full_date': c_date,
@@ -269,7 +292,10 @@ def pregnancy_journey_view(request):
             })
 
     # 2.3 照護待辦 (CareRecord)
-    care_records = CareRecord.objects.filter(user=current_user, state=True).order_by('-recordtime')[:10]
+    if pregnancy_case:
+        care_records = CareRecord.objects.filter(pregnancycase=pregnancy_case, state=True).order_by('-recordtime')[:15]
+    else:
+        care_records = CareRecord.objects.filter(user=current_user, state=True).order_by('-recordtime')[:15]
     for cr in care_records:
         r_date = cr.recordtime.date() if hasattr(cr.recordtime, 'date') else today
         w_str = WEEKDAY_MAP.get(r_date.weekday(), '週日')
@@ -326,14 +352,17 @@ def memory_wall_view(request):
         request, current_user, fallback=has_baby_selection
     )
     pregnancy_case = resolve_active_pregnancy_case(request, current_user)
+    if not active_baby and pregnancy_case:
+        active_baby = get_case_display_baby(pregnancy_case)
     today = timezone.now().date()
 
     stats = _calc_stats(current_user, pregnancy_case, active_baby, today)
+    target_uid = pregnancy_case.user_id if pregnancy_case else current_user.user_id
 
     # 1. ✨ 那年那天 (Flashback)
     flashback = None
     on_this_day_preg = PregnancyRecord.objects.filter(
-        user=current_user,
+        user_id=target_uid,
         check_date__month=today.month,
         check_date__day=today.day
     ).exclude(check_date=today).first()
@@ -349,11 +378,18 @@ def memory_wall_view(request):
             'title': '那年的今天 ✨',
         }
     else:
-        on_this_day_baby = BabyRecord.objects.filter(
-            baby__pregnancycase__user=current_user,
-            date__month=today.month,
-            date__day=today.day
-        ).exclude(date=today).first()
+        if pregnancy_case:
+            on_this_day_baby = BabyRecord.objects.filter(
+                baby__pregnancycase=pregnancy_case,
+                date__month=today.month,
+                date__day=today.day
+            ).exclude(date=today).first()
+        else:
+            on_this_day_baby = BabyRecord.objects.filter(
+                baby__pregnancycase__user=current_user,
+                date__month=today.month,
+                date__day=today.day
+            ).exclude(date=today).first()
 
         if on_this_day_baby:
             diff_years = max(1, today.year - on_this_day_baby.date.year)
@@ -370,7 +406,7 @@ def memory_wall_view(request):
     # 2. 按月份分組相簿
     raw_photos = []
     ultrasound_records = (
-        Prenatalrecord.objects.filter(pregnancyrecord__user=current_user, photo__isnull=False)
+        Prenatalrecord.objects.filter(pregnancyrecord__user_id=target_uid, photo__isnull=False)
         .exclude(photo='')
         .select_related('pregnancyrecord')
         .order_by('-pregnancyrecord__check_date')
@@ -386,12 +422,20 @@ def memory_wall_view(request):
             'stage': '孕期紀錄',
         })
 
-    baby_photo_records = (
-        BabyRecord.objects.filter(baby__pregnancycase__user=current_user, photo__isnull=False)
-        .exclude(photo='')
-        .select_related('baby')
-        .order_by('-date')
-    )
+    if pregnancy_case:
+        baby_photo_records = (
+            BabyRecord.objects.filter(baby__pregnancycase=pregnancy_case, photo__isnull=False)
+            .exclude(photo='')
+            .select_related('baby')
+            .order_by('-date')
+        )
+    else:
+        baby_photo_records = (
+            BabyRecord.objects.filter(baby__pregnancycase__user=current_user, photo__isnull=False)
+            .exclude(photo='')
+            .select_related('baby')
+            .order_by('-date')
+        )
     for br in baby_photo_records:
         dt = br.date or today
         baby_name = br.baby.name if br.baby else '寶寶'
@@ -460,28 +504,30 @@ def baby_growth_view(request):
         request, current_user, fallback=has_baby_selection
     )
     pregnancy_case = resolve_active_pregnancy_case(request, current_user)
+    if not active_baby and pregnancy_case:
+        active_baby = get_case_display_baby(pregnancy_case)
     today = timezone.now().date()
 
     stats = _calc_stats(current_user, pregnancy_case, active_baby, today)
     lmp = get_lmp_date(pregnancy_case) if pregnancy_case else None
 
     # 切換模式：預設若有 baby 則顯示 baby 模式，亦可透過 ?mode= 切換
-    mode = request.GET.get('mode', 'pregnancy' if not active_baby else 'baby')
+    mode = request.GET.get('mode', 'baby' if active_baby else 'pregnancy')
 
     if mode == 'baby':
         baby_name = active_baby.name if active_baby else '寶寶'
-        recap_title = f'{baby_name} 1 歲成長精華 🎓'
-        recap_subtitle = '365 天的愛與陪伴，見證每一個第一次！'
+        recap_title = f'{baby_name} 成長精華 🎓'
+        recap_subtitle = '溫暖陪伴，見證小寶每一個珍貴的第一次！'
         hero_blessing = '🍼 「從發出第一個聲音，到跨出第一步，謝謝你平安健康長大。」'
         weight_title = '📈 寶寶成長曲線'
         mom_letter_title = '給爸媽的一段話'
 
         milestones = [
             {'title': '首次抬頭成功', 'week': '3 個月', 'icon': '👶'},
-            {'title': '首次翻身成功', 'week': '5 個月', 'icon': '🤸'},
-            {'title': '成功坐立', 'week': '7 個月', 'icon': '🪑'},
-            {'title': '長第一顆乳牙', 'week': '9 個月', 'icon': '🦷'},
-            {'title': '跨出第一步', 'week': '12 個月', 'icon': '👟'},
+            {'title': '首次翻身成功', 'week': '6 個月', 'icon': '🤸'},
+            {'title': '成功坐立拍手', 'week': '8 個月', 'icon': '🪑'},
+            {'title': '一歲獨立站立', 'week': '12 個月', 'icon': '👟'},
+            {'title': '兩歲自理如廁', 'week': '36 個月', 'icon': '🎓'},
         ]
     else:
         recap_title = '孕期畢業典禮 🎓'
@@ -492,42 +538,90 @@ def baby_growth_view(request):
 
         milestones = [
             {'title': '第一次看到寶寶心跳', 'week': '8 週', 'icon': '❤️'},
-            {'title': '第一次感受到胎動', 'week': '20 週', 'icon': '👶'},
-            {'title': '寶寶性別揭曉', 'week': '25 週', 'icon': '✨'},
-            {'title': '準備寶寶用品', 'week': '32 週', 'icon': '🍼'},
-            {'title': '寶寶平安誕生', 'week': '40 週', 'icon': '🎓'},
+            {'title': '第一次感受到胎動', 'week': '18 週', 'icon': '👶'},
+            {'title': '高層次超音波過關', 'week': '20 週', 'icon': '✨'},
+            {'title': '準備寶寶用品待產包', 'week': '34 週', 'icon': '🍼'},
+            {'title': '小寶平安誕生', 'week': '40 週', 'icon': '🎓'},
         ]
 
-    # 體重趨勢點 (取自 ORM)
-    weight_records = PregnancyRecord.objects.filter(
-        user=current_user, weight__isnull=False
-    ).order_by('check_date')[:5]
-
+    # 體重趨勢點 (取自 ORM，精準均勻採樣 5 個點配合 SVG 5節點版面)
     weight_points = []
-    for wr in weight_records:
-        w_label = wr.check_date.strftime('%m/%d') if wr.check_date else '紀錄'
-        if lmp and wr.check_date:
-            d = (wr.check_date - lmp).days
-            if d >= 0:
-                w_label = f'{d // 7 + 1}週'
-        weight_points.append({
-            'week': w_label,
-            'val': float(wr.weight)
-        })
+    if mode == 'baby' and active_baby:
+        b_records = list(
+            BabyRecord.objects.filter(baby=active_baby, weight__isnull=False).order_by('date')
+        )
+        if b_records:
+            indices = [0, len(b_records) // 4, len(b_records) // 2, (3 * len(b_records)) // 4, len(b_records) - 1]
+            seen_idx = []
+            for idx in indices:
+                if idx not in seen_idx and idx < len(b_records):
+                    seen_idx.append(idx)
+            b_birth = (
+                active_baby.birthdaytime.date()
+                if hasattr(active_baby.birthdaytime, 'date')
+                else active_baby.birthdaytime
+            )
+            for idx in seen_idx:
+                br = b_records[idx]
+                if b_birth and br.date:
+                    months = (br.date.year - b_birth.year) * 12 + br.date.month - b_birth.month
+                    if br.date.day < b_birth.day:
+                        months -= 1
+                    w_label = f'{max(0, months)}個月' if months > 0 else '出生'
+                else:
+                    w_label = br.date.strftime('%m/%d') if br.date else '紀錄'
+                weight_points.append({
+                    'week': w_label,
+                    'val': float(br.weight)
+                })
+    else:
+        target_uid = pregnancy_case.user_id if pregnancy_case else current_user.user_id
+        weight_records = list(
+            PregnancyRecord.objects.filter(user_id=target_uid, weight__isnull=False).order_by('check_date')
+        )
+        if weight_records:
+            indices = [0, len(weight_records) // 4, len(weight_records) // 2, (3 * len(weight_records)) // 4, len(weight_records) - 1]
+            seen_idx = []
+            for idx in indices:
+                if idx not in seen_idx and idx < len(weight_records):
+                    seen_idx.append(idx)
+            for idx in seen_idx:
+                wr = weight_records[idx]
+                w_label = wr.check_date.strftime('%m/%d') if wr.check_date else '紀錄'
+                if lmp and wr.check_date:
+                    d = (wr.check_date - lmp).days
+                    if d >= 0:
+                        w_label = f'{d // 7 + 1}週'
+                weight_points.append({
+                    'week': w_label,
+                    'val': float(wr.weight)
+                })
 
     if len(weight_points) < 2:
-        weight_points = [
-            {'week': '12週', 'val': 52.0},
-            {'week': '20週', 'val': 54.5},
-            {'week': '28週', 'val': 57.2},
-            {'week': '36週', 'val': 60.1},
-            {'week': '40週', 'val': 62.0},
-        ]
+        if mode == 'baby':
+            weight_points = [
+                {'week': '出生', 'val': 3.2},
+                {'week': '3個月', 'val': 6.4},
+                {'week': '6個月', 'val': 8.2},
+                {'week': '12個月', 'val': 10.2},
+                {'week': '36個月', 'val': 15.1},
+            ]
+        else:
+            weight_points = [
+                {'week': '8週', 'val': 50.5},
+                {'week': '16週', 'val': 52.5},
+                {'week': '24週', 'val': 55.7},
+                {'week': '32週', 'val': 59.2},
+                {'week': '40週', 'val': 61.8},
+            ]
 
     # 心情統計 (取自 ORM)
-    feeling_counts = Userfeeling.objects.filter(
-        pregnancyrecord__user=current_user
-    ).values('feeling__feeling_name').annotate(cnt=Count('feeling'))
+    target_uid = pregnancy_case.user_id if pregnancy_case else current_user.user_id
+    feeling_counts = list(
+        Userfeeling.objects.filter(
+            pregnancyrecord__user_id=target_uid
+        ).values('feeling__feeling_name').annotate(cnt=Count('feeling')).order_by('-cnt')
+    )
 
     total_f = sum(item['cnt'] for item in feeling_counts)
     mood_colors = ['#8064A2', '#b2e4fb', '#f8bbd0', '#e3e3df']
@@ -544,14 +638,14 @@ def baby_growth_view(request):
     else:
         mood_distribution = [
             {'name': '幸福', 'pct': 45, 'color': '#8064A2'},
-            {'name': '期待', 'pct': 30, 'color': '#b2e4fb'},
+            {'name': '開心', 'pct': 30, 'color': '#b2e4fb'},
             {'name': '安心', 'pct': 15, 'color': '#f8bbd0'},
             {'name': '累', 'pct': 10, 'color': '#e3e3df'},
         ]
 
     # 手寫筆記 (取自 ORM)
     latest_note_rec = PregnancyRecord.objects.filter(
-        user=current_user, record__isnull=False
+        user_id=target_uid, record__isnull=False
     ).exclude(record='').order_by('-check_date').first()
 
     mom_letter = latest_note_rec.record if latest_note_rec else ('這 365 天很辛苦，但看到孩子一天天長大，一切都值得。' if mode == 'baby' else '這 40 週很辛苦，但妳非常棒！謝謝妳的努力與堅持，期待我們一起陪寶寶長大的每一天。')
