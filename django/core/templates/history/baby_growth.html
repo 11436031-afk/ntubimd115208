@@ -30,7 +30,7 @@
         </div>
 
         <div class="flex items-center gap-2 text-[#8064A2]">
-            <a href="/history-review/share-card/" class="w-8 h-8 rounded-full bg-[#EDE5F5] flex items-center justify-center hover:bg-[#65518a] hover:text-white transition-colors cursor-pointer" title="分享卡片">
+            <a href="/history-review/share-card/{% if active_selection_query %}?{{ active_selection_query }}{% endif %}" class="w-8 h-8 rounded-full bg-[#EDE5F5] flex items-center justify-center hover:bg-[#65518a] hover:text-white transition-colors cursor-pointer" title="分享卡片">
                 <span class="material-symbols-outlined text-base">share</span>
             </a>
         </div>
@@ -56,10 +56,10 @@
 
     <!-- 階段報告雙模式切換 Pills -->
     <div class="grid grid-cols-2 gap-2 p-1 bg-[#FAF8FC] rounded-2xl mb-6 border border-[#E8E0EF]">
-        <a href="/history-review/baby-growth/?mode=pregnancy" class="py-2 px-3 rounded-xl text-xs font-bold text-center transition-all flex items-center justify-center gap-1.5 {% if mode == 'pregnancy' %}bg-[#65518a] text-white shadow-xs{% else %}text-[#4A4052] hover:text-[#65518a]{% endif %}">
+        <a href="/history-review/baby-growth/?mode=pregnancy{% if active_selection_query %}&{{ active_selection_query }}{% endif %}" class="py-2 px-3 rounded-xl text-xs font-bold text-center transition-all flex items-center justify-center gap-1.5 {% if mode == 'pregnancy' %}bg-[#65518a] text-white shadow-xs{% else %}text-[#4A4052] hover:text-[#65518a]{% endif %}">
             <span>🤰 孕期畢業報告</span>
         </a>
-        <a href="/history-review/baby-growth/?mode=baby" class="py-2 px-3 rounded-xl text-xs font-bold text-center transition-all flex items-center justify-center gap-1.5 {% if mode == 'baby' %}bg-[#65518a] text-white shadow-xs{% else %}text-[#4A4052] hover:text-[#65518a]{% endif %}">
+        <a href="/history-review/baby-growth/?mode=baby{% if active_selection_query %}&{{ active_selection_query }}{% endif %}" class="py-2 px-3 rounded-xl text-xs font-bold text-center transition-all flex items-center justify-center gap-1.5 {% if mode == 'baby' %}bg-[#65518a] text-white shadow-xs{% else %}text-[#4A4052] hover:text-[#65518a]{% endif %}">
             <span>👶 寶寶 1 歲精華</span>
         </a>
     </div>
@@ -234,11 +234,11 @@
     <!-- 📤 底部 Action Buttons (儲存精華卡 / 分享) -->
     <!-- ========================================== -->
     <section class="flex gap-3">
-        <a href="/history-review/share-card/" class="flex-1 py-3 px-4 rounded-full bg-white hover:bg-[#FAF8FC] text-[#65518a] border border-[#65518a] text-xs font-bold text-center transition-all duration-300 flex items-center justify-center gap-1.5 shadow-2xs">
+        <a href="/history-review/share-card/{% if active_selection_query %}?{{ active_selection_query }}{% endif %}" class="flex-1 py-3 px-4 rounded-full bg-white hover:bg-[#FAF8FC] text-[#65518a] border border-[#65518a] text-xs font-bold text-center transition-all duration-300 flex items-center justify-center gap-1.5 shadow-2xs">
             <span class="material-symbols-outlined text-[18px]">image</span>
             <span>儲存精華卡</span>
         </a>
-        <a href="/history-review/share-card/" class="flex-1 py-3 px-4 rounded-full bg-[#65518a] hover:bg-[#524172] text-white text-xs font-bold text-center transition-all duration-300 flex items-center justify-center gap-1.5 shadow-xs">
+        <a href="/history-review/share-card/{% if active_selection_query %}?{{ active_selection_query }}{% endif %}" class="flex-1 py-3 px-4 rounded-full bg-[#65518a] hover:bg-[#524172] text-white text-xs font-bold text-center transition-all duration-300 flex items-center justify-center gap-1.5 shadow-xs">
             <span class="material-symbols-outlined text-[18px]">ios_share</span>
             <span>分享至 LINE / IG</span>
         </a>

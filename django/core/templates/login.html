@@ -18,7 +18,10 @@
     }
     </script>
 
-    <script src="https://accounts.google.com/gsi/client" defer></script>
+    <!-- 🔑 改用 onload callback 動態初始化，取代原本寫死在 HTML data-* 屬性上的 login_uri，
+         這樣不管用 http://localhost:8000 或 http://127.0.0.1:8000 開啟，
+         都會用「當下瀏覽器實際 origin」組出正確的 callback 網址，不會固定跑去同一個網域。 -->
+    <script src="https://accounts.google.com/gsi/client" onload="initGoogleSignIn()" async defer></script>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <script id="tailwind-config">
         tailwind.config = {
@@ -92,16 +95,35 @@
 
             <div class="w-full flex flex-col items-center gap-4">
 
-                <div id="g_id_onload"
-                    data-client_id="1005276403057-p67ocf8c13e5121akigm7sq93l7db7s2.apps.googleusercontent.com"
-                    data-login_uri="{{ request.scheme }}://{{ request.get_host }}/google_auth_login"
-                    data-error_callback="handleGoogleError"
-                    data-ux_mode="redirect"
-                    data-use_fedcm_for_prompt="false">
-                </div>
                 <div class="w-full flex justify-center">
-                    <div class="g_id_signin" data-type="standard" data-size="large" data-theme="outline" data-shape="pill" data-text="signin_with" data-logo_alignment="left" data-width="360"></div>
+                    <div id="g_id_signin_container"></div>
                 </div>
+
+                <script>
+                    function initGoogleSignIn() {
+                        google.accounts.id.initialize({
+                            client_id: "1005276403057-p67ocf8c13e5121akigm7sq93l7db7s2.apps.googleusercontent.com",
+                            // 🔑 用當下瀏覽器的 origin 動態組出 callback 網址，
+                            // 不管是 localhost 還是 127.0.0.1 開的頁面，登入完都會導回同一個 origin。
+                            login_uri: window.location.origin + '/api/auth/callback',
+                            ux_mode: 'redirect',
+                            error_callback: handleGoogleError,
+                            use_fedcm_for_prompt: false
+                        });
+                        google.accounts.id.renderButton(
+                            document.getElementById('g_id_signin_container'),
+                            {
+                                type: 'standard',
+                                size: 'large',
+                                theme: 'outline',
+                                shape: 'pill',
+                                text: 'signin_with',
+                                logo_alignment: 'left',
+                                width: 360
+                            }
+                        );
+                    }
+                </script>
 
                 <a href="{% provider_login_url 'line' %}" style="width:360px;" class="flex items-center justify-center gap-3 px-6 py-2.5 bg-line-green hover:bg-line-green-hover text-white font-medium rounded-full transition-all duration-200 shadow-sm border border-transparent">
                     <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24">

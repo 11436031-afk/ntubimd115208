@@ -206,7 +206,7 @@ def v3_timeline(request):
             'type_label': '待辦',
             'badge_color': 'bg-amber-100 text-amber-700 border-amber-300',
             'dot_color': 'bg-amber-400',
-            'title': f'待辦：{c.content or "提醒事項"}',
+            'title': f'待辦：{c.content or "待辦清單"}',
             'content': f'狀態: {"已完成" if c.state else "未完成"}',
             'photo': None,
             'creator': current_user.name,

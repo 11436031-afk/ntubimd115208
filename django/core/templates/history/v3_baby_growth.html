@@ -1,7 +1,7 @@
 {% extends 'base/base.html' %}
 {% load static %}
 
-{% block title %}歷史回顧 (第三版) - 紀念冊{% endblock %}
+{% block title %}歷史回顧 - 紀念冊{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -44,13 +44,14 @@
         pointer-events: auto;
     }
 
-    .hover-hint {
-        transition: opacity 0.3s ease, transform 0.3s ease;
+    .node-title {
+        transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease, border-color 0.3s ease;
     }
-    .milestone-group:hover .hover-hint,
-    .milestone-group.is-active .hover-hint {
-        opacity: 0;
-        transform: translateY(-4px);
+    .milestone-group:hover .node-title,
+    .milestone-group.is-active .node-title {
+        transform: scale(1.08);
+        border-color: #65518a;
+        box-shadow: 0 4px 12px rgba(101, 81, 138, 0.15);
     }
 </style>
 {% endblock %}
@@ -65,7 +66,7 @@
                 <span class="material-symbols-outlined text-[18px] group-hover:-translate-x-0.5 transition-transform">arrow_back</span>
                 <span>返回首頁</span>
             </a>
-            <span class="text-[11px] font-bold text-[#65518a] bg-[#EDE5F5] px-3 py-1 rounded-full border border-[#E8E0EF]">歷史回顧（第三版）</span>
+            <span class="text-[11px] font-bold text-[#65518a] bg-[#EDE5F5] px-3 py-1 rounded-full border border-[#E8E0EF]">歷史回顧</span>
         </div>
 
         <div class="grid grid-cols-3 bg-[#EDE5F5]/80 p-1.5 rounded-full border border-[#E8E0EF] shadow-2xs backdrop-blur-md">
@@ -82,10 +83,12 @@
     </div>
 
     <main class="pt-4 pb-32 px-6 max-w-2xl mx-auto overflow-hidden">
-        <!-- Hero Section -->
-        <section class="relative z-10 mb-10 text-center md:text-left">
-            <h2 class="font-['Plus_Jakarta_Sans'] text-3xl sm:text-4xl font-extrabold text-[#362459] tracking-tight mb-2">紀念冊</h2>
-            <p class="text-[#65518a] font-medium text-base sm:text-lg leading-relaxed font-['Be_Vietnam_Pro']">「游標移至圓圈即可展開動態詳細紀錄」</p>
+        <!-- Header Section -->
+        <section class="text-center space-y-2 pt-2 pb-6 relative">
+            <div class="absolute -top-10 -left-10 w-40 h-40 bg-[#d6beff]/30 blur-3xl rounded-full opacity-50"></div>
+            <div class="absolute -top-10 -right-10 w-40 h-40 bg-[#f8bbd0]/30 blur-3xl rounded-full opacity-50"></div>
+            <h2 class="text-3xl sm:text-4xl font-extrabold tracking-tight font-['Plus_Jakarta_Sans'] text-[#362459]">紀念冊</h2>
+            <p class="text-[#5b5c5a] font-medium text-base sm:text-lg leading-relaxed px-4 font-['Be_Vietnam_Pro']">「一起回顧這段最美好的成長旅程」</p>
         </section>
 
         <!-- Journey Path Section -->
@@ -114,9 +117,11 @@
                             ❤️
                         </div>
 
-                        <!-- 懸浮提示語 -->
-                        <div class="hover-hint mt-2 text-[11px] font-extrabold text-[#65518a] bg-white/90 px-3 py-0.5 rounded-full border border-[#d6beff]/50 shadow-2xs">
-                            Hover 展開詳情 ✨
+                        <!-- 圖案下方大標題 -->
+                        <div class="node-title mt-2.5 px-3.5 py-1 bg-white/95 rounded-full border border-[#d6beff]/60 shadow-2xs text-center">
+                            <span class="text-xs sm:text-sm font-extrabold text-[#362459] group-hover:text-[#65518a] font-['Plus_Jakarta_Sans'] whitespace-nowrap">
+                                第一次聽見心跳
+                            </span>
                         </div>
 
                         <!-- 動態展開詳細資料卡片 (Detail Card) -->
@@ -143,9 +148,11 @@
                             🩺
                         </div>
 
-                        <!-- 懸浮提示語 -->
-                        <div class="hover-hint mt-2 text-[11px] font-extrabold text-[#65518a] bg-white/90 px-3 py-0.5 rounded-full border border-[#d6beff]/50 shadow-2xs">
-                            Hover 展開詳情 ✨
+                        <!-- 圖案下方大標題 -->
+                        <div class="node-title mt-2.5 px-3.5 py-1 bg-white/95 rounded-full border border-[#d6beff]/60 shadow-2xs text-center">
+                            <span class="text-xs sm:text-sm font-extrabold text-[#362459] group-hover:text-[#65518a] font-['Plus_Jakarta_Sans'] whitespace-nowrap">
+                                第一次產檢
+                            </span>
                         </div>
 
                         <!-- 動態展開詳細資料卡片 (Detail Card) -->
@@ -166,9 +173,11 @@
                             🦶
                         </div>
 
-                        <!-- 懸浮提示語 -->
-                        <div class="hover-hint mt-2 text-[11px] font-extrabold text-[#65518a] bg-white/90 px-3 py-0.5 rounded-full border border-[#d6beff]/50 shadow-2xs">
-                            Hover 展開詳情 ✨
+                        <!-- 圖案下方大標題 -->
+                        <div class="node-title mt-2.5 px-3.5 py-1 bg-white/95 rounded-full border border-[#d6beff]/60 shadow-2xs text-center">
+                            <span class="text-xs sm:text-sm font-extrabold text-[#362459] group-hover:text-[#65518a] font-['Plus_Jakarta_Sans'] whitespace-nowrap">
+                                第一次胎動
+                            </span>
                         </div>
 
                         <!-- 動態展開詳細資料卡片 (Detail Card) -->
@@ -195,9 +204,11 @@
                             👶
                         </div>
 
-                        <!-- 懸浮提示語 -->
-                        <div class="hover-hint mt-2 text-[11px] font-extrabold text-[#65518a] bg-white/90 px-3 py-0.5 rounded-full border border-[#d6beff]/50 shadow-2xs">
-                            Hover 展開詳情 ✨
+                        <!-- 圖案下方大標題 -->
+                        <div class="node-title mt-2.5 px-3.5 py-1 bg-white/95 rounded-full border border-[#d6beff]/60 shadow-2xs text-center">
+                            <span class="text-xs sm:text-sm font-extrabold text-[#362459] group-hover:text-[#65518a] font-['Plus_Jakarta_Sans'] whitespace-nowrap">
+                                寶寶誕生啦
+                            </span>
                         </div>
 
                         <!-- 動態展開詳細資料卡片 (Detail Card) -->

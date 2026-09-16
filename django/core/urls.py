@@ -1,6 +1,5 @@
 """Core URL routes."""
 
-from django.contrib.admindocs import views
 from django.urls import path, include
 
 from views import (
@@ -25,7 +24,6 @@ from views import (
 
 
 urlpatterns = [
-
     # ======================
     # 首頁
     # ======================
@@ -38,6 +36,17 @@ urlpatterns = [
     path('login/', login.login_page, name='login'),
 
     path('accounts/', include('allauth.urls')),
+
+    # 🔑 這條是給登入頁的 Google Identity Services（GSI）按鈕使用的 callback，
+    # 只處理一般登入時 POST 過來的 credential JWT（見 login.google_auth_login）。
+    #
+    # 注意：name 絕對不能取成 'google_callback'！
+    # allauth 內部會用 reverse('google_callback') 算出它自己 OAuth 流程要用的
+    # redirect_uri（也就是 /accounts/google/login/callback/）。如果這裡撞名，
+    # allauth 綁定帳號（process=connect）時算出來的網址會被這條路由劫持，
+    # 導致 Google 導回時打到這裡卻用 GET 帶 code，而這裡只接受 POST，
+    # 進而出現 405 或後續一連串連動錯誤。
+    path('api/auth/callback', login.google_auth_login, name='gsi_google_callback'),
 
     path(
         'google_auth_login/',
