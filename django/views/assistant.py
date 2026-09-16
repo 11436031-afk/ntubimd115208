@@ -4,6 +4,7 @@ import os
 import time
 from urllib import error, request as urlrequest
 
+from django.db.models import Q
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
 
@@ -186,10 +187,18 @@ def assistant(request):
         return JsonResponse({"ok": True, "answer": answer})
 
     born_babies = BabyInformation.objects.filter(
-        pregnancycase__user=current_user,
+        Q(pregnancycase__user=current_user)
+        | Q(pregnancycase__familymember__user=current_user),
         birthdaytime__isnull=False,
-    ).order_by("birthdaytime", "baby_id")
+    ).select_related("pregnancycase").distinct().order_by("birthdaytime", "baby_id")
+    assistant_babies = [
+        {
+            "baby": baby,
+            "role": "養育者" if baby.pregnancycase.user_id == current_user.user_id else "協助者",
+        }
+        for baby in born_babies
+    ]
     return render(request, "base/assistant.html", {
         "current_user": current_user,
-        "born_babies": born_babies,
+        "assistant_babies": assistant_babies,
     })
