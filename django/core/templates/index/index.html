@@ -529,9 +529,9 @@
                 }).filter(Boolean);
             }
 
-            function buildDotsForPoints(points) {
+            function buildDotsForPoints(points, unit) {
                 return points.map(point =>
-                    `<g data-label="${point.label}" data-date="${point.dateVal}" data-weight="${point.value}" transform="translate(${point.x.toFixed(2)},${point.y.toFixed(2)})">
+                    `<g data-label="${point.label}" data-date="${point.dateVal}" data-weight="${point.value}" data-unit="${unit || point.unit || 'kg'}" transform="translate(${point.x.toFixed(2)},${point.y.toFixed(2)})">
                         <circle class="hit-area" cx="0" cy="0" r="8" fill="transparent" pointer-events="all"></circle>
                     </g>`
                 ).join('');
@@ -539,14 +539,14 @@
 
             const weightPath = buildPathForKey('weight', scaleYWeight);
             const weightPoints = buildPointsForKey('weight', scaleYWeight, 'kg');
-            const weightDots = buildDotsForPoints(weightPoints);
+            const weightDots = buildDotsForPoints(weightPoints, 'kg');
 
             let heightSvg = '';
             let heightPoints = [];
             if (mode === 'baby') {
                 const heightPath = buildPathForKey('height', scaleYHeight);
                 heightPoints = buildPointsForKey('height', scaleYHeight, 'cm');
-                const heightDots = buildDotsForPoints(heightPoints);
+                const heightDots = buildDotsForPoints(heightPoints, 'cm');
                 if (heightPath) {
                     heightSvg = `
                         <path d="${heightPath}" fill="none" stroke="#2e9e6b" stroke-linecap="round" stroke-linejoin="round" stroke-width="4.5" vector-effect="non-scaling-stroke"></path>
@@ -685,8 +685,9 @@
                 if (!hit) return;
 
                 const weight = g.getAttribute('data-weight');
+                const unit = g.getAttribute('data-unit') || 'kg';
                 const date = g.getAttribute('data-date') || g.getAttribute('data-label') || '';
-                const text = `${date} — ${weight} kg`;
+                const text = `${date} — ${weight} ${unit}`;
                 hit.addEventListener('mouseenter', (ev) => showTooltip(text, ev.clientX, ev.clientY));
                 hit.addEventListener('mousemove', (ev) => showTooltip(text, ev.clientX, ev.clientY));
                 hit.addEventListener('mouseleave', hideTooltip);
