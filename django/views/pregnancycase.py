@@ -171,7 +171,7 @@ def partition_pregnancy_cases(cases, on_date=None):
         for baby in case.babyinformation_set.all().order_by('baby_id'):
             if not baby.birthdaytime:
                 continue
-            baby._case_id = case.pregnancycase_id 
+            baby._case_id = case.pregnancycase_id
             baby.age_text = baby_age_text(baby.birthdaytime, on_date)
             baby.birthday_str = (
                 baby.birthdaytime.date()
@@ -266,12 +266,6 @@ def resolve_active_pregnancy_case(request, user):
         except (ValueError, TypeError):
             pass
 
-    active_case_id = request.session.get('active_case_id')
-    if active_case_id:
-        case = _case_for_user_ext(active_case_id)
-        if case:
-            return case
-
     active_baby_id = request.session.get('active_baby_id')
     if active_baby_id:
         try:
@@ -294,10 +288,6 @@ def resolve_active_pregnancy_case(request, user):
                 request.session['active_baby_id'] = b.baby_id
             return case
 
-    for case in cases:
-        if is_pregnancy_ongoing(case):
-            request.session['active_case_id'] = case.pregnancycase_id
-            return case
 
     if cases:
         case = cases[-1]
@@ -624,7 +614,7 @@ def pregnancy_case(request):
     user = get_current_user_profile(request)
     if not user:
         return redirect('login')
-    
+
     # 刪除胎數：僅接受 POST，避免 GET 連結（含瀏覽器預抓取）誤觸刪除。
     # 前端範本需將刪除按鈕改成 <form method="post"> 提交 delete_id，而非 <a href="?delete_id=...">。
     if request.method == 'POST' and request.POST.get('delete_id'):
@@ -646,7 +636,7 @@ def pregnancy_case(request):
     for case in active_cases:
         case.is_owner = case.pregnancycase_id in own_case_ids
     for baby in born_babies:
-        baby.case_id_for_edit = baby._case_id    
+        baby.case_id_for_edit = baby._case_id
         baby.is_owner = baby.pregnancycase_id in own_case_ids
 
 
@@ -754,6 +744,14 @@ def add_pregnancy_case(request):
                 })
 
             name = (request.POST.get(f'baby_name_{num}') or '').strip() or f'嬰幼兒 {num}'
+            gender = (request.POST.get(f'gender_{num}') or '').strip()
+            if gender not in {'1', '2'}:
+                generated_code = _generate_unique_code()
+                return render(request, 'pregnancycase/add_pregnancy_case.html', {
+                    'generated_code': generated_code,
+                    'error': f'第 {num} 位嬰幼兒：請選擇性別',
+                    'form_data': request.POST,
+                })
             w  = _parse_float(request.POST.get(f'baby_weight_{num}') or request.POST.get('baby_weight'))
             h  = _parse_float(request.POST.get(f'baby_height_{num}') or request.POST.get('baby_height'))
             hc = _parse_float(request.POST.get(f'baby_head_{num}') or request.POST.get('baby_head'))
@@ -772,6 +770,7 @@ def add_pregnancy_case(request):
 
             babies_payload.append({
                 'name': name,
+                'gender': gender,
                 'birthdaytime': birthdaytime,
                 'baby_height': h,
                 'baby_weight': w,
@@ -881,9 +880,12 @@ def edit_pregnancy_case(request):
         # 這裡是關鍵修正：LMP 是推算出生週數的權威基準，若使用者調整了 LMP，
         # 必須重新檢查所有既有（或本次修改）的出生時間是否仍落在 14w~43w 合理區間，
         # 否則會產生「出生時間與新 LMP 矛盾」的髒資料且完全無提示。
-        baby_updates = []  # [(baby, new_name, new_birthdaytime), ...]
+        baby_updates = []  # [(baby, new_name, new_gender, new_birthdaytime), ...]
         for i, baby in enumerate(babies, start=1):
             new_name = (request.POST.get(f'baby_name_{i}') or '').strip() or baby.name
+            new_gender = (request.POST.get(f'gender_{i}') or '').strip()
+            if new_gender not in {'1', '2'}:
+                return _render_error(f'「{baby.name}」：請選擇性別', menstruation_str, expecteddate_str)
 
             birthdaytime_str = (request.POST.get(f'birthdaytime_{i}') or '').strip()
             if birthdaytime_str:
@@ -903,7 +905,7 @@ def edit_pregnancy_case(request):
             if birth_error:
                 return _render_error(f'「{baby.name}」：{birth_error}', menstruation_str, expecteddate_str)
 
-            baby_updates.append((baby, new_name, new_birthdaytime))
+            baby_updates.append((baby, new_name, new_gender, new_birthdaytime))
 
         # 若 case 下還沒有任何寶寶，且有填 baby_name_1，一併驗證後再建立
         new_baby_payload = None
@@ -922,15 +924,23 @@ def edit_pregnancy_case(request):
                 birth_error = validate_birth_datetime(new_menstruation, new_birthdaytime)
                 if birth_error:
                     return _render_error(birth_error, menstruation_str, expecteddate_str)
-                new_baby_payload = {'name': new_name, 'birthdaytime': new_birthdaytime}
+                gender = (request.POST.get('gender_1') or '').strip()
+                if gender not in {'1', '2'}:
+                    return _render_error('請選擇性別', menstruation_str, expecteddate_str)
+                new_baby_payload = {
+                    'name': new_name,
+                    'gender': gender,
+                    'birthdaytime': new_birthdaytime,
+                }
 
         # ── 驗證全數通過，才真正落地寫入 ──────────────────────────────
         case.menstruation = new_menstruation
         case.expecteddate = new_expecteddate
         case.save()
 
-        for baby, new_name, new_birthdaytime in baby_updates:
+        for baby, new_name, new_gender, new_birthdaytime in baby_updates:
             baby.name = new_name
+            baby.gender = new_gender
             baby.birthdaytime = new_birthdaytime
             baby.save()
 

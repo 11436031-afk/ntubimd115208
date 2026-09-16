@@ -11,10 +11,10 @@ from views.session_utils import get_current_user_profile
 # ==================== 1. 新增功能 ====================
 def add_baby_information(request):
     user = get_current_user_profile(request)
-    if not user: 
+    if not user:
         return redirect('login')
     case = resolve_active_pregnancy_case(request, user)
-    if not case: 
+    if not case:
         return redirect('pregnancy_case')
 
     if case.user_id != user.user_id:
@@ -23,13 +23,21 @@ def add_baby_information(request):
             return redirect('pregnancy_case')
 
     if request.method == 'POST':
+        gender = (request.POST.get('gender') or '').strip()
+        if gender not in {'1', '2'}:
+            return render(request, 'baby/add_babyinformation.html', {
+                'error': '請選擇性別',
+                'case': case,
+                'form_data': request.POST
+            })
+
         b_time = None
         if (request.POST.get('birthdaytime') or '').strip():
-            try: 
+            try:
                 b_time = timezone.make_aware(datetime.datetime.strptime(request.POST.get('birthdaytime').strip(), '%Y-%m-%dT%H:%M'))
             except ValueError:
                 return render(request, 'baby/add_babyinformation.html', {
-                    'error': '日期時間格式不正確', 
+                    'error': '日期時間格式不正確',
                     'case': case,
                     'form_data': request.POST
                 })
@@ -60,6 +68,7 @@ def add_baby_information(request):
         new_baby = BabyInformation.objects.create(
             pregnancycase=case,
             name=(request.POST.get('baby_name') or '').strip() or '小寶',
+            gender=gender,
             birthdaytime=b_time,
             baby_height=h,
             baby_weight=w,
@@ -112,9 +121,9 @@ def edit_baby_information(request):
                 request.session.modified = True
         except (ValueError, TypeError):
             pass
-            
+
     active_baby = baby_utils.get_active_baby(request)
-    if active_baby is None: 
+    if active_baby is None:
         return redirect('pregnancy_case')
 
     if active_baby.pregnancycase and active_baby.pregnancycase.user_id != user.user_id:
@@ -127,6 +136,15 @@ def edit_baby_information(request):
         name = (request.POST.get('baby_name') or '').strip()
         if name:
             active_baby.name = name
+
+        gender = (request.POST.get('gender') or '').strip()
+        if gender not in {'1', '2'}:
+            return render(request, 'baby/edit_babyinformation.html', {
+                'baby': active_baby,
+                'gender_choices': BabyInformation.GENDER_CHOICES,
+                'error': '請選擇性別',
+            })
+        active_baby.gender = gender
 
         # 逐欄位鎖定（有值 = 已填過，不再覆蓋）
         dt_locked = active_baby.birthdaytime is not None
@@ -208,6 +226,7 @@ def edit_baby_information(request):
 
     return render(request, 'baby/edit_babyinformation.html', {
         'baby': active_baby,
+        'gender_choices': BabyInformation.GENDER_CHOICES,
         'birthdaytime_value': birthdaytime_value,
         'join_code': join_code,
         'lmp_date_value': lmp_date_value,

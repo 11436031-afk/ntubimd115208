@@ -269,6 +269,16 @@ document.addEventListener('DOMContentLoaded', function () {
             </div>
         </div>
 
+        <!-- 性別 -->
+        <div class="space-y-2">
+            <label class="text-xs font-bold text-on-surface-variant uppercase tracking-wider pl-1">性別</label>
+            <select name="gender_${num}" class="${inputBase} px-4 py-3" required>
+                <option value="" disabled selected>請選擇性別</option>
+                <option value="1">男</option>
+                <option value="2">女</option>
+            </select>
+        </div>
+
         <!-- 出生時間 -->
         <div class="space-y-2">
             <label class="text-xs font-bold text-on-surface-variant uppercase tracking-wider pl-1">出生時間（選填）</label>
