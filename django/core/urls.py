@@ -19,6 +19,7 @@ from views import (
     social_sharing_card,
     history_review,
     history_review_v3,
+	assistant,
 	a
 )
 
@@ -214,6 +215,12 @@ urlpatterns = [
         'qa/',
         qa.qa_conversation,
         name='qa_conversation'
+    ),
+
+    path(
+        'assistant/',
+        assistant.assistant,
+        name='assistant'
     ),
 
 

@@ -60,6 +60,13 @@
                     </div>
                 </div>
                 <div class="space-y-2">
+                    <label class="text-xs font-bold text-on-surface-variant uppercase tracking-wider pl-1">性別</label>
+                    <select name="gender_{{ forloop.counter }}" required class="w-full bg-surface-container-low border-none rounded-xl px-4 py-3.5 text-on-surface focus:ring-2 focus:ring-primary-container transition-all text-sm outline-none font-medium">
+                        <option value="1" {% if baby.gender == '1' %}selected{% endif %}>男</option>
+                        <option value="2" {% if baby.gender == '2' %}selected{% endif %}>女</option>
+                    </select>
+                </div>
+                <div class="space-y-2">
                     <label class="text-xs font-bold text-on-surface-variant uppercase tracking-wider pl-1">
                         {% if baby_inputs|length > 1 %}寶寶 {{ forloop.counter }} 出生時間（選填）{% else %}出生時間（選填）{% endif %}
                     </label>
@@ -78,6 +85,14 @@
                         <input type="text" name="baby_name_1" placeholder="例如：大寶、二寶"
                             class="w-full bg-surface-container-low border-none rounded-xl pl-12 pr-4 py-3.5 text-on-surface focus:ring-2 focus:ring-primary-container transition-all text-sm outline-none font-medium" />
                     </div>
+                </div>
+                <div class="space-y-2">
+                    <label class="text-xs font-bold text-on-surface-variant uppercase tracking-wider pl-1">性別</label>
+                    <select name="gender_1" required class="w-full bg-surface-container-low border-none rounded-xl px-4 py-3.5 text-on-surface focus:ring-2 focus:ring-primary-container transition-all text-sm outline-none font-medium">
+                        <option value="" selected disabled>請選擇性別</option>
+                        <option value="1">男</option>
+                        <option value="2">女</option>
+                    </select>
                 </div>
                 <div class="space-y-2">
                     <label class="text-xs font-bold text-on-surface-variant uppercase tracking-wider pl-1">出生時間（選填）</label>
