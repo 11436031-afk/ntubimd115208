@@ -315,6 +315,114 @@
             <div class="p-6 grid grid-cols-4 gap-4" id="month-picker-grid"></div>
         </div>
     </div>
+
+    <!-- ── 浮動「詢問 AI 助手」按鈕 ── -->
+    <a
+        href="{% url 'assistant' %}"
+        id="assistant-fab"
+        aria-label="詢問成長評估助手"
+        class="fixed z-40 flex items-center gap-2 shadow-xl transition-all duration-300 select-none"
+        style="bottom: 5.5rem; right: 1.25rem;"
+    >
+        <!-- 光暈 -->
+        <span class="assistant-fab-ring" aria-hidden="true"></span>
+
+        <!-- 圖示圓形區 -->
+        <span class="assistant-fab-icon">
+            <span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1,'wght' 600; font-size:1.35rem; line-height:1;">
+                smart_toy
+            </span>
+        </span>
+
+        <!-- 展開文字（hover 時顯示） -->
+        <span class="assistant-fab-label">AI 成長評估</span>
+    </a>
+
+    <style>
+        /* ── FAB 容器 ── */
+        #assistant-fab {
+            background: linear-gradient(135deg, #7460a0 0%, #5c4880 100%);
+            color: #fff;
+            border-radius: 999px;
+            padding: 0.6rem 0.75rem 0.6rem 0.7rem;
+            max-width: 3rem;           /* 收合時只顯示圖示 */
+            overflow: hidden;
+            white-space: nowrap;
+            box-shadow:
+                0 4px 14px rgba(101, 81, 138, 0.45),
+                0 2px 6px  rgba(101, 81, 138, 0.25);
+            text-decoration: none;
+        }
+
+        #assistant-fab:hover {
+            max-width: 12rem;          /* 展開顯示文字 */
+            padding-right: 1.1rem;
+            box-shadow:
+                0 6px 22px rgba(101, 81, 138, 0.5),
+                0 3px 10px rgba(101, 81, 138, 0.3);
+            transform: translateY(-2px);
+        }
+
+        #assistant-fab:active {
+            transform: translateY(0) scale(0.97);
+        }
+
+        /* ── 光暈脈動 ── */
+        .assistant-fab-ring {
+            position: absolute;
+            inset: -4px;
+            border-radius: 999px;
+            background: transparent;
+            border: 2px solid rgba(180, 155, 220, 0.55);
+            animation: fab-ring-pulse 2.4s ease-in-out infinite;
+            pointer-events: none;
+        }
+
+        @keyframes fab-ring-pulse {
+            0%, 100% { opacity: 0; transform: scale(1); }
+            50%       { opacity: 1; transform: scale(1.07); }
+        }
+
+        /* ── 圖示圓圈 ── */
+        .assistant-fab-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 1.7rem;
+            height: 1.7rem;
+            flex-shrink: 0;
+        }
+
+        /* ── 展開文字 ── */
+        .assistant-fab-label {
+            font-family: 'Be Vietnam Pro', sans-serif;
+            font-size: 0.8rem;
+            font-weight: 700;
+            letter-spacing: 0.01em;
+            opacity: 0;
+            transform: translateX(-4px);
+            transition:
+                opacity 200ms ease 60ms,
+                transform 200ms ease 60ms;
+            flex-shrink: 0;
+        }
+
+        #assistant-fab:hover .assistant-fab-label {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        /* ── 入場動畫 ── */
+        #assistant-fab {
+            animation: fab-enter 480ms cubic-bezier(0.34, 1.56, 0.64, 1) 300ms both;
+        }
+
+        @keyframes fab-enter {
+            from { opacity: 0; transform: translateY(16px) scale(0.85); }
+            to   { opacity: 1; transform: translateY(0)    scale(1); }
+        }
+    </style>
+
 {% endblock %}
 
 <!-- Future-date Toast -->

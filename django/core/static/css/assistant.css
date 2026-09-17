@@ -1,62 +1,223 @@
-.assistant-page {
-    min-height: calc(100vh - 148px);
-    padding: 3rem 1.5rem;
-    background: radial-gradient(circle at top right, rgba(236, 226, 250, 0.65), transparent 34rem), #f7f6f3;
+/* =====================================================
+   CoLoGrowth · Assistant Page
+   ===================================================== */
+
+/* ---------- Page Shell ---------- */
+/* Override base.css `main { margin-bottom: 100px }` so no page scroll appears */
+main.assistant-page {
+    margin-bottom: 0;
 }
 
+.assistant-page {
+    /* Lock to exactly the remaining viewport after the sticky nav (~68px) */
+    height: calc(100vh - 68px);
+    padding: 1rem 1rem;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;          /* page itself must NOT scroll */
+    box-sizing: border-box;
+}
+
+/* ---------- Main Card ---------- */
 .assistant-panel {
-    width: min(100%, 920px);
-    min-height: min(720px, calc(100vh - 220px));
+    width: min(100%, 960px);
+    /* Fill the page shell exactly — no min/max height tricks needed */
+    flex: 1;
+    min-height: 0;             /* allow flex child to shrink below content size */
     margin: 0 auto;
     display: flex;
     flex-direction: column;
-    padding: clamp(1.25rem, 4vw, 3rem);
-    border: 1px solid rgba(101, 81, 138, 0.14);
-    border-radius: 1.5rem;
-    background: rgba(255, 255, 255, 0.82);
-    box-shadow: 0 1.5rem 4rem rgba(46, 47, 45, 0.1);
+    padding: clamp(1.25rem, 3vw, 2.5rem);
+    border: 1px solid rgba(101, 81, 138, 0.13);
+    border-radius: 2rem;
+    background: rgba(255, 255, 255, 0.93);
+    overflow: hidden;          /* panel clips content; only messages div scrolls */
+    box-shadow:
+        0 1px 2px  rgba(101, 81, 138, 0.04),
+        0 6px 20px rgba(101, 81, 138, 0.07),
+        0 28px 60px rgba(46,  47,  45,  0.08);
+    backdrop-filter: blur(4px);
+    margin-bottom: 70px;  /* small gap to bottom of page */
+
 }
 
+/* =====================================================
+   HEADER
+   ===================================================== */
 .assistant-heading {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 1rem;
-    padding-bottom: 1.5rem;
-    border-bottom: 1px solid rgba(101, 81, 138, 0.12);
+    gap: 1.25rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid rgba(101, 81, 138, 0.1);
+    flex-shrink: 0;            /* never compress the header */
 }
 
 .assistant-eyebrow {
-    margin: 0 0 0.4rem;
-    color: #8f6b4f;
-    font-size: 0.72rem;
+    margin: 0 0 0.5rem;
+    font-size: 0.66rem;
     font-weight: 800;
-    letter-spacing: 0.16em;
+    letter-spacing: 0.2em;
     text-transform: uppercase;
+    color: #8f6b4f;
+    opacity: 0.8;
 }
 
 .assistant-heading h1 {
     margin: 0;
-    color: #40334f;
     font-family: 'Plus Jakarta Sans', sans-serif;
-    font-size: clamp(1.45rem, 3vw, 2.2rem);
-    line-height: 1.2;
+    font-size: clamp(1.3rem, 3.5vw, 2rem);
+    font-weight: 800;
+    line-height: 1.18;
+    letter-spacing: -0.02em;
+    background: linear-gradient(125deg, #3b2f4a 20%, #65518a 80%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 
 .assistant-heading p:last-child {
-    margin: 0.7rem 0 0;
-    color: #716b75;
-    font-size: 0.92rem;
+    margin: 0.65rem 0 0;
+    color: #9a8fa2;
+    font-size: 0.88rem;
+    line-height: 1.65;
 }
 
 .assistant-logo {
-    width: 3.5rem;
-    height: 3.5rem;
+    width: 3.75rem;
+    height: 3.75rem;
     object-fit: contain;
+    flex-shrink: 0;
+    filter: drop-shadow(0 3px 8px rgba(101, 81, 138, 0.2));
+    transition: transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
+.assistant-logo:hover {
+    transform: rotate(-6deg) scale(1.08);
+}
+
+/* =====================================================
+   MESSAGES AREA
+   ===================================================== */
+.assistant-messages {
+    flex: 1;
+    min-height: 0;             /* critical: allows flex child to scroll internally */
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    overflow-y: auto;
+    padding: 1.25rem 0.25rem 0.75rem;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(101, 81, 138, 0.16) transparent;
+}
+
+.assistant-messages::-webkit-scrollbar { width: 4px; }
+.assistant-messages::-webkit-scrollbar-track  { background: transparent; }
+.assistant-messages::-webkit-scrollbar-thumb  {
+    background: rgba(101, 81, 138, 0.18);
+    border-radius: 99px;
+}
+
+/* ---------- Bubble Base ---------- */
+.assistant-message {
+    max-width: min(78%, 660px);
+    padding: 0.9rem 1.2rem;
+    border-radius: 1.4rem;
+    font-size: 0.91rem;
+    line-height: 1.78;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    animation: msg-appear 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes msg-appear {
+    from { opacity: 0; transform: translateY(10px) scale(0.96); }
+    to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+
+.assistant-message-bot {
+    align-self: flex-start;
+    color: #342940;
+    background: linear-gradient(145deg, #f2ecfc 0%, #ede6f7 100%);
+    border: 1px solid rgba(101, 81, 138, 0.1);
+    border-top-left-radius: 0.35rem;
+    box-shadow:
+        0 1px 3px rgba(101, 81, 138, 0.08),
+        0 4px 14px rgba(101, 81, 138, 0.06);
+}
+
+.assistant-message-user {
+    align-self: flex-end;
+    color: #fff;
+    background: linear-gradient(145deg, #7460a0 0%, #5c4880 100%);
+    border-top-right-radius: 0.35rem;
+    box-shadow:
+        0 2px 8px rgba(101, 81, 138, 0.24),
+        0 8px 22px rgba(101, 81, 138, 0.16);
+}
+
+.assistant-message-error {
+    align-self: flex-start;
+    color: #8c2f2a;
+    background: linear-gradient(145deg, #fff5f4 0%, #ffeeed 100%);
+    border: 1px solid rgba(140, 47, 42, 0.15);
+    border-top-left-radius: 0.35rem;
+    box-shadow: 0 2px 10px rgba(140, 47, 42, 0.07);
+}
+
+/* =====================================================
+   STATUS / TYPING
+   ===================================================== */
+.assistant-status {
+    align-self: flex-start;
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    margin: 0 0.25rem 0.6rem;
+    padding: 0.6rem 1.1rem;
+    border: 1px solid rgba(101, 81, 138, 0.1);
+    border-radius: 1.4rem;
+    border-top-left-radius: 0.35rem;
+    background: linear-gradient(145deg, #f2ecfc 0%, #ede6f7 100%);
+    color: #8a7e92;
+    font-size: 0.78rem;
+    line-height: 1.4;
+    box-shadow: 0 2px 8px rgba(101, 81, 138, 0.07);
+    animation: msg-appear 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.assistant-status:empty { display: none; }
+
+.assistant-status-dots { display: flex; gap: 4px; }
+
+.assistant-status-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #65518a;
+    animation: dot-bounce 1.1s ease-in-out infinite;
+}
+.assistant-status-dot:nth-child(2) { animation-delay: 0.15s; }
+.assistant-status-dot:nth-child(3) { animation-delay: 0.30s; }
+
+@keyframes dot-bounce {
+    0%, 80%, 100% { transform: translateY(0);    opacity: 0.35; }
+    40%           { transform: translateY(-5px); opacity: 1;    }
+}
+
+/* =====================================================
+   PRESET / QUICK QUESTIONS PANEL
+   ===================================================== */
 .assistant-presets {
-    padding: 1.25rem 0 0;
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    padding: 0.85rem 0 0;   /* reduced from 1.4rem */
+    margin-top: auto;
+    border-top: 1px solid rgba(101, 81, 138, 0.1);
+    background: rgba(255, 255, 255, 0.97);
+    backdrop-filter: blur(12px);
 }
 
 .assistant-presets-heading {
@@ -67,212 +228,378 @@
 }
 
 .assistant-presets-heading > .material-symbols-outlined {
+    font-size: 1.35rem;
     color: #8f6b4f;
+    opacity: 0.65;
+    font-variation-settings: 'FILL' 1;
 }
 
 .assistant-section-label {
-    margin: 0 0 0.25rem;
-    color: #8f6b4f;
-    font-size: 0.7rem;
+    margin: 0 0 0.1rem;
+    font-size: 0.62rem;
     font-weight: 800;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #8f6b4f;
+    opacity: 0.8;
 }
 
 .assistant-presets h2 {
     margin: 0;
-    color: #40334f;
-    font-size: 1rem;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #3b2f4a;
 }
 
-.assistant-baby-list,
-.assistant-question-buttons {
+/* ---------- Baby Cards ---------- */
+.assistant-baby-list {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.6rem;
-    margin-top: 0.8rem;
-}
-
-.assistant-baby-card,
-.assistant-question-buttons button {
-    border: 1px solid rgba(101, 81, 138, 0.16);
-    color: #453b4b;
-    background: #fff;
-    cursor: pointer;
-    transition: border-color 160ms ease, background-color 160ms ease, transform 160ms ease;
+    gap: 0.45rem;          /* reduced from 0.6rem */
+    margin-top: 0.6rem;    /* reduced from 0.9rem */
 }
 
 .assistant-baby-card {
     display: flex;
     align-items: center;
-    gap: 0.6rem;
-    min-width: 9rem;
-    padding: 0.65rem 0.75rem;
-    border-radius: 0.8rem;
+    gap: 0.5rem;           /* reduced from 0.65rem */
+    min-width: 8rem;       /* reduced from 9.5rem */
+    padding: 0.5rem 0.75rem; /* reduced from 0.7rem 0.9rem */
+    border: 1.5px solid rgba(101, 81, 138, 0.15);
+    border-radius: 0.85rem;
+    background: #fff;
+    color: #453b4b;
+    cursor: pointer;
     text-align: left;
+    position: relative;
+    overflow: hidden;
+    transition:
+        border-color 200ms ease,
+        background   200ms ease,
+        box-shadow   200ms ease,
+        transform    220ms cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow: 0 1px 4px rgba(101, 81, 138, 0.07);
 }
 
-.assistant-baby-card:hover,
-.assistant-question-buttons button:hover,
+/* Shimmer highlight on selected */
+.assistant-baby-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.65) 0%, rgba(255,255,255,0) 60%);
+    opacity: 0;
+    transition: opacity 200ms ease;
+    pointer-events: none;
+}
+
+.assistant-baby-card:hover {
+    border-color: rgba(143, 107, 79, 0.4);
+    background: #fffaf6;
+    box-shadow:
+        0 3px 10px rgba(143, 107, 79, 0.13),
+        0 1px 3px rgba(101, 81, 138, 0.07);
+    transform: translateY(-2px);
+}
+
 .assistant-baby-card.is-selected {
     border-color: #8f6b4f;
-    background: #fff9f1;
-    transform: translateY(-1px);
+    background: linear-gradient(145deg, #fff9f2 0%, #f6f0ff 100%);
+    box-shadow:
+        0 0 0 3px rgba(143, 107, 79, 0.12),
+        0 5px 16px rgba(101, 81, 138, 0.14);
+    transform: translateY(-2px);
 }
+
+.assistant-baby-card.is-selected::before { opacity: 1; }
 
 .assistant-baby-icon {
     color: #65518a;
+    font-size: 1.1rem;     /* reduced from 1.3rem */
+    flex-shrink: 0;
+    font-variation-settings: 'FILL' 1;
+    transition: transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1), color 200ms ease;
+}
+
+.assistant-baby-card.is-selected .assistant-baby-icon {
+    color: #7460a0;
+    transform: scale(1.12);
 }
 
 .assistant-baby-card span:nth-child(2) {
     display: flex;
     flex-direction: column;
-    gap: 0.15rem;
+    gap: 0.08rem;
+    flex: 1;
+    min-width: 0;
 }
 
 .assistant-baby-card strong {
-    font-size: 0.88rem;
+    font-size: 0.82rem;    /* reduced from 0.87rem */
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #3b2f4a;
 }
 
 .assistant-baby-card small {
-    color: #716b75;
-    font-size: 0.68rem;
+    font-size: 0.63rem;    /* reduced from 0.67rem */
+    font-weight: 500;
+    color: #9a8fa2;
 }
+
+.assistant-baby-card.is-selected small { color: #8f6b4f; }
 
 .assistant-baby-check {
     margin-left: auto;
-    color: #c9c1cf;
-    font-size: 1.1rem;
+    font-size: 1.05rem;
+    color: #d4c8dd;
+    flex-shrink: 0;
+    transition:
+        color     200ms ease,
+        transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .assistant-baby-card.is-selected .assistant-baby-check {
     color: #65518a;
+    font-variation-settings: 'FILL' 1;
+    transform: scale(1.15);
 }
 
+/* =====================================================
+   QUESTION LIST — SLIDE-DOWN WRAPPER
+   Uses the CSS grid trick: grid-template-rows 0fr → 1fr
+   so height animates without JS measuring.
+   ===================================================== */
+.assistant-ql-wrap {
+    display: grid;
+    grid-template-rows: 0fr;       /* collapsed */
+    opacity: 0;
+    transition:
+        grid-template-rows 420ms cubic-bezier(0.22, 1, 0.36, 1),
+        opacity            320ms ease;
+}
+
+.assistant-ql-wrap.is-open {
+    grid-template-rows: 1fr;       /* expanded */
+    opacity: 1;
+}
+
+/* Must have overflow:hidden so content clips while collapsing */
+.assistant-ql-inner {
+    overflow: hidden;
+    /* small bottom padding so box-shadow on cards isn't clipped */
+    padding-bottom: 0.35rem;
+}
+
+/* ---------- Question list inner content ---------- */
 .assistant-question-list {
-    margin-top: 0.9rem;
+    padding-top: 0.65rem;   /* reduced from 1rem */
+    /* 2-column grid: hint spans full width, groups sit side by side */
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 1.1rem;
+    align-items: start;
 }
 
+/* Hint spans both columns */
 .assistant-question-hint {
-    margin: 0;
-    color: #716b75;
-    font-size: 0.78rem;
+    grid-column: 1 / -1;
+    margin: 0 0 0.45rem;   /* reduced from 0.75rem */
+    font-size: 0.76rem;
+    color: #9a8fa2;
+    line-height: 1.45;
 }
 
+/* Hint slide-in animation when baby is switched */
+.assistant-question-hint.hint-slide {
+    animation: hint-slide 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes hint-slide {
+    from { opacity: 0; transform: translateX(-6px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+
+.assistant-question-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;           /* reduced from 0.45rem */
+}
+
+/* No extra margin needed — grid column-gap handles spacing */
+.assistant-question-group + .assistant-question-group {
+    margin-top: 0;
+}
+
+.assistant-question-group h3 {
+    margin: 0 0 0.1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.28rem;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 0.64rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    opacity: 0.85;
+}
+
+.assistant-question-group h3 .material-symbols-outlined {
+    font-size: 0.95rem;
+    font-variation-settings: 'FILL' 1;
+    flex-shrink: 0;
+}
+
+/* ── 目前成長 — purple / lavender theme ── */
+.assistant-question-group--now {
+    padding: 0.6rem 0.7rem;
+    background: linear-gradient(150deg, rgba(101, 81, 138, 0.07) 0%, rgba(180, 155, 220, 0.04) 100%);
+    border: 1px solid rgba(101, 81, 138, 0.13);
+    border-top: 2.5px solid #65518a;
+    border-radius: 0.85rem;
+    box-shadow: 0 2px 8px rgba(101, 81, 138, 0.07);
+}
+
+.assistant-question-group--now h3 {
+    color: #65518a;
+}
+
+/* ── 歷史成長 — amber / warm-brown theme ── */
+.assistant-question-group--history {
+    padding: 0.6rem 0.7rem;
+    background: linear-gradient(150deg, rgba(143, 107, 79, 0.07) 0%, rgba(200, 165, 120, 0.04) 100%);
+    border: 1px solid rgba(143, 107, 79, 0.16);
+    border-top: 2.5px solid #8f6b4f;
+    border-radius: 0.85rem;
+    box-shadow: 0 2px 8px rgba(143, 107, 79, 0.08);
+}
+
+.assistant-question-group--history h3 {
+    color: #8f6b4f;
+}
+
+/* History group buttons — amber hover scheme */
+.assistant-question-group--history .assistant-question-buttons button {
+    border-color: rgba(143, 107, 79, 0.2);
+    color: #5c4231;
+}
+
+.assistant-question-group--history .assistant-question-buttons button:hover:not(:disabled) {
+    border-color: #8f6b4f;
+    background: #fff8f2;
+    color: #7a5232;
+    box-shadow: 0 3px 10px rgba(143, 107, 79, 0.18);
+    transform: translateY(-1px) scale(1.03);
+}
+
+.assistant-question-group--history .assistant-question-buttons button:active:not(:disabled) {
+    transform: translateY(0) scale(0.97);
+}
+
+/* ---------- Question buttons ---------- */
 .assistant-question-buttons {
-    margin-top: 0.55rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;            /* reduced from 0.5rem */
 }
 
 .assistant-question-buttons button {
-    padding: 0.55rem 0.75rem;
+    padding: 0.38rem 0.8rem;   /* reduced from 0.48rem 0.95rem */
+    border: 1.5px solid rgba(101, 81, 138, 0.16);
     border-radius: 999px;
-    font-size: 0.78rem;
-}
-
-.assistant-empty-state {
-    margin: 0.8rem 0 0;
-    color: #716b75;
-    font-size: 0.8rem;
-}
-
-.assistant-messages {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    overflow-y: auto;
-    padding: 2rem 0.25rem;
-}
-
-.assistant-message {
-    max-width: min(82%, 680px);
-    padding: 0.95rem 1.15rem;
-    border-radius: 1.25rem;
-    white-space: pre-wrap;
-    line-height: 1.7;
-    overflow-wrap: anywhere;
-}
-
-.assistant-message-bot {
-    align-self: flex-start;
+    font-family: 'Be Vietnam Pro', sans-serif;
+    font-size: 0.73rem;    /* reduced from 0.76rem */
+    font-weight: 600;
     color: #453b4b;
-    background: #f0eafa;
-    border-top-left-radius: 0.35rem;
-}
-
-.assistant-message-user {
-    align-self: flex-end;
-    color: #fff;
-    background: #65518a;
-    border-top-right-radius: 0.35rem;
-}
-
-.assistant-message-error {
-    align-self: flex-start;
-    color: #9f3d36;
-    background: #fff0ee;
-    border: 1px solid rgba(159, 61, 54, 0.18);
-}
-
-.assistant-form {
-    display: flex;
-    align-items: center;
-    gap: 0.65rem;
-    padding: 0.5rem;
-    border: 1px solid rgba(101, 81, 138, 0.2);
-    border-radius: 0.9rem;
     background: #fff;
-}
-
-.assistant-form input {
-    min-width: 0;
-    flex: 1;
-    padding: 0.7rem 0.8rem;
-    border: 0;
-    outline: 0;
-    background: transparent;
-    color: #40334f;
-}
-
-.assistant-form button {
-    display: grid;
-    width: 2.7rem;
-    height: 2.7rem;
-    place-items: center;
-    border: 0;
-    border-radius: 0.65rem;
-    color: #fff;
-    background: #65518a;
     cursor: pointer;
+    box-shadow: 0 1px 3px rgba(101, 81, 138, 0.07);
+    transition:
+        border-color     180ms ease,
+        background-color 180ms ease,
+        color            180ms ease,
+        box-shadow       180ms ease,
+        transform        180ms cubic-bezier(0.34, 1.56, 0.64, 1),
+        opacity          180ms ease;
 }
 
-.assistant-form button:disabled {
+.assistant-question-buttons button:hover:not(:disabled) {
+    border-color: #65518a;
+    background: #f3effe;
+    color: #65518a;
+    box-shadow: 0 3px 10px rgba(101, 81, 138, 0.15);
+    transform: translateY(-1px) scale(1.03);
+}
+
+.assistant-question-buttons button:active:not(:disabled) {
+    transform: translateY(0) scale(0.97);
+}
+
+.assistant-question-buttons button:disabled {
+    opacity: 0.45;
     cursor: wait;
-    opacity: 0.55;
 }
 
-.assistant-status {
-    min-height: 1.25rem;
-    margin: 0.6rem 0 0;
-    color: #716b75;
-    font-size: 0.8rem;
+/* Pop-in animation class added by JS with stagger delays */
+.btn-pop {
+    animation: btn-pop 320ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
+@keyframes btn-pop {
+    from { opacity: 0; transform: translateY(10px) scale(0.85); }
+    to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+
+/* ---------- Empty State ---------- */
+.assistant-empty-state {
+    margin: 1rem 0 0;
+    padding: 1.2rem 1.4rem;
+    border: 1.5px dashed rgba(101, 81, 138, 0.2);
+    border-radius: 1rem;
+    background: rgba(101, 81, 138, 0.03);
+    color: #9a8fa2;
+    font-size: 0.82rem;
+    line-height: 1.65;
+}
+
+/* =====================================================
+   RESPONSIVE
+   ===================================================== */
 @media (max-width: 640px) {
     .assistant-page {
-        padding: 1rem 0.75rem;
+        height: calc(100vh - 64px);  /* nav is slightly shorter on mobile */
+        padding: 0.6rem 0.6rem;
     }
 
     .assistant-panel {
-        min-height: calc(100vh - 180px);
-        padding: 1.25rem;
-        border-radius: 1rem;
+        /* remove min-height — flex:1 on panel fills the page already */
+        padding: 1rem 0.9rem;
+        border-radius: 1.25rem;
+        margin-bottom: 1.5rem;  /* small gap to bottom of page */
+    }
+
+    .assistant-heading h1 {
+        font-size: 1.2rem;
     }
 
     .assistant-heading p:last-child {
-        font-size: 0.82rem;
+        display: none;
+    }
+
+    .assistant-logo {
+        width: 3rem;
+        height: 3rem;
     }
 
     .assistant-message {
-        max-width: 92%;
+        max-width: 90%;
+        font-size: 0.88rem;
+    }
+
+    .assistant-baby-card {
+        min-width: 7.5rem;
+        padding: 0.6rem 0.75rem;
     }
 }
