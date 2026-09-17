@@ -35,16 +35,24 @@ def _day_bounds_in_taiwan(date_value):
     return start_naive, end_naive
 
 
-def _build_pregnancy_chart_data(user):
+def _build_pregnancy_chart_data(user, pregnancy_case=None):
     if not user:
         return []
 
     chart_rows = []
-    records = (
-        PregnancyRecord.objects
-        .filter(user=user, weight__isnull=False)
-        .order_by('check_date', 'pregnancyrecord_id')
-    )
+    if pregnancy_case:
+        records = (
+            records_for_case(pregnancy_case)
+            .filter(weight__isnull=False)
+            .order_by('check_date', 'pregnancyrecord_id')
+        )
+    else:
+        records = (
+            PregnancyRecord.objects
+            .filter(user=user, weight__isnull=False)
+            .order_by('check_date', 'pregnancyrecord_id')
+        )
+
     for record in records:
         check_date = (
             record.check_date.date()
@@ -58,6 +66,36 @@ def _build_pregnancy_chart_data(user):
             'label': f'{check_date.month}/{check_date.day}',
             'weight': float(record.weight),
         })
+
+    # 左下角的日期改成每一胎的最後月經日期
+    if pregnancy_case and pregnancy_case.menstruation:
+        lmp = pregnancy_case.menstruation
+        lmp_iso = lmp.isoformat()
+        lmp_label = f'{lmp.month}/{lmp.day}'
+
+        existing_lmp_idx = next((i for i, r in enumerate(chart_rows) if r['date_iso'] == lmp_iso), None)
+        if existing_lmp_idx is not None:
+            lmp_row = chart_rows.pop(existing_lmp_idx)
+            lmp_row['label'] = lmp_label
+            lmp_row['is_lmp'] = True
+            chart_rows.insert(0, lmp_row)
+        else:
+            initial_weight = chart_rows[0]['weight'] if chart_rows else None
+            if initial_weight is not None:
+                chart_rows.insert(0, {
+                    'date_iso': lmp_iso,
+                    'label': lmp_label,
+                    'weight': initial_weight,
+                    'is_lmp': True,
+                })
+            else:
+                chart_rows.insert(0, {
+                    'date_iso': lmp_iso,
+                    'label': lmp_label,
+                    'weight': None,
+                    'is_lmp': True,
+                })
+
     return chart_rows
 
 
@@ -103,7 +141,7 @@ def index(request):
         request, current_user, fallback=has_baby_selection
     )
     pregnancy_case = resolve_active_pregnancy_case(request, current_user)
-    pregnancy_chart_data = _build_pregnancy_chart_data(current_user)
+    pregnancy_chart_data = _build_pregnancy_chart_data(current_user, pregnancy_case)
     baby_chart_data = _build_baby_chart_data(active_baby)
     pregnancy_progress = build_pregnancy_progress(pregnancy_case, today)
 
