@@ -3,111 +3,52 @@
    ===================================================== */
 
 /* ---------- Page Shell ---------- */
-/* Override base.css `main { margin-bottom: 100px }` so no page scroll appears */
 main.assistant-page {
     margin-bottom: 0;
 }
 
 .assistant-page {
-    /* Lock to exactly the remaining viewport after the sticky nav (~68px) */
-    height: calc(100vh - 68px);
-    padding: 1rem 1rem;
+    /* nav ≈ 68px + assistant sub-header = 56px (h-14) */
+    height: calc(100vh - 68px - 56px);
     display: flex;
     flex-direction: column;
-    overflow: hidden;          /* page itself must NOT scroll */
+    overflow: hidden;
     box-sizing: border-box;
 }
 
 /* ---------- Main Card ---------- */
 .assistant-panel {
-    width: min(100%, 960px);
-    /* Fill the page shell exactly — no min/max height tricks needed */
+    width: min(100%, 980px);
     flex: 1;
-    min-height: 0;             /* allow flex child to shrink below content size */
+    min-height: 0;
     margin: 0 auto;
     display: flex;
     flex-direction: column;
-    padding: clamp(1.25rem, 3vw, 2.5rem);
-    border: 1px solid rgba(101, 81, 138, 0.13);
+    padding: clamp(1.25rem, 3vw, 2rem) clamp(1.25rem, 3vw, 2rem) 1rem;
+    border: 1px solid rgba(101, 81, 138, 0.12);
     border-radius: 2rem;
-    background: rgba(255, 255, 255, 0.93);
-    overflow: hidden;          /* panel clips content; only messages div scrolls */
+    background: rgba(255, 255, 255, 0.96);
+    overflow: hidden;
     box-shadow:
-        0 1px 2px  rgba(101, 81, 138, 0.04),
-        0 6px 20px rgba(101, 81, 138, 0.07),
-        0 28px 60px rgba(46,  47,  45,  0.08);
+        0 2px 4px  rgba(101, 81, 138, 0.05),
+        0 8px 28px rgba(101, 81, 138, 0.09),
+        0 32px 64px rgba(46,  47,  45,  0.07);
     backdrop-filter: blur(4px);
-    margin-bottom: 70px;  /* small gap to bottom of page */
+    margin-bottom:75px;
 
 }
 
 /* =====================================================
-   HEADER
-   ===================================================== */
-.assistant-heading {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 1.25rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 1px solid rgba(101, 81, 138, 0.1);
-    flex-shrink: 0;            /* never compress the header */
-}
-
-.assistant-eyebrow {
-    margin: 0 0 0.5rem;
-    font-size: 0.66rem;
-    font-weight: 800;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    color: #8f6b4f;
-    opacity: 0.8;
-}
-
-.assistant-heading h1 {
-    margin: 0;
-    font-family: 'Plus Jakarta Sans', sans-serif;
-    font-size: clamp(1.3rem, 3.5vw, 2rem);
-    font-weight: 800;
-    line-height: 1.18;
-    letter-spacing: -0.02em;
-    background: linear-gradient(125deg, #3b2f4a 20%, #65518a 80%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-}
-
-.assistant-heading p:last-child {
-    margin: 0.65rem 0 0;
-    color: #9a8fa2;
-    font-size: 0.88rem;
-    line-height: 1.65;
-}
-
-.assistant-logo {
-    width: 3.75rem;
-    height: 3.75rem;
-    object-fit: contain;
-    flex-shrink: 0;
-    filter: drop-shadow(0 3px 8px rgba(101, 81, 138, 0.2));
-    transition: transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.assistant-logo:hover {
-    transform: rotate(-6deg) scale(1.08);
-}
-
-/* =====================================================
-   MESSAGES AREA
+   MESSAGES AREA  — 佔據所有可用空間
    ===================================================== */
 .assistant-messages {
     flex: 1;
-    min-height: 0;             /* critical: allows flex child to scroll internally */
+    min-height: 0;
     display: flex;
     flex-direction: column;
-    gap: 0.85rem;
+    gap: 0.9rem;
     overflow-y: auto;
-    padding: 1.25rem 0.25rem 0.75rem;
+    padding: 0.5rem 0.25rem 0.75rem;
     scrollbar-width: thin;
     scrollbar-color: rgba(101, 81, 138, 0.16) transparent;
 }
@@ -119,42 +60,54 @@ main.assistant-page {
     border-radius: 99px;
 }
 
+/* Empty-state hint inside message area */
+.assistant-messages:empty::before {
+    content: '選擇寶寶後點擊下方問題，開始詢問 AI 助手';
+    display: block;
+    margin: auto;
+    text-align: center;
+    color: #b8afc4;
+    font-size: 0.88rem;
+    line-height: 1.7;
+    padding: 2rem 1.5rem;
+}
+
 /* ---------- Bubble Base ---------- */
 .assistant-message {
-    max-width: min(78%, 660px);
-    padding: 0.9rem 1.2rem;
-    border-radius: 1.4rem;
-    font-size: 0.91rem;
-    line-height: 1.78;
+    max-width: min(80%, 680px);
+    padding: 0.95rem 1.3rem;
+    border-radius: 1.5rem;
+    font-size: 0.93rem;
+    line-height: 1.8;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
-    animation: msg-appear 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation: msg-appear 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 @keyframes msg-appear {
-    from { opacity: 0; transform: translateY(10px) scale(0.96); }
+    from { opacity: 0; transform: translateY(12px) scale(0.96); }
     to   { opacity: 1; transform: translateY(0)    scale(1); }
 }
 
 .assistant-message-bot {
     align-self: flex-start;
     color: #342940;
-    background: linear-gradient(145deg, #f2ecfc 0%, #ede6f7 100%);
+    background: linear-gradient(145deg, #f3eeff 0%, #ece5f8 100%);
     border: 1px solid rgba(101, 81, 138, 0.1);
-    border-top-left-radius: 0.35rem;
+    border-top-left-radius: 0.4rem;
     box-shadow:
         0 1px 3px rgba(101, 81, 138, 0.08),
-        0 4px 14px rgba(101, 81, 138, 0.06);
+        0 4px 16px rgba(101, 81, 138, 0.07);
 }
 
 .assistant-message-user {
     align-self: flex-end;
     color: #fff;
-    background: linear-gradient(145deg, #7460a0 0%, #5c4880 100%);
-    border-top-right-radius: 0.35rem;
+    background: linear-gradient(145deg, #8b6fc8 0%, #65518a 100%);
+    border-top-right-radius: 0.4rem;
     box-shadow:
-        0 2px 8px rgba(101, 81, 138, 0.24),
-        0 8px 22px rgba(101, 81, 138, 0.16);
+        0 2px 8px rgba(101, 81, 138, 0.25),
+        0 8px 24px rgba(101, 81, 138, 0.15);
 }
 
 .assistant-message-error {
@@ -162,7 +115,7 @@ main.assistant-page {
     color: #8c2f2a;
     background: linear-gradient(145deg, #fff5f4 0%, #ffeeed 100%);
     border: 1px solid rgba(140, 47, 42, 0.15);
-    border-top-left-radius: 0.35rem;
+    border-top-left-radius: 0.4rem;
     box-shadow: 0 2px 10px rgba(140, 47, 42, 0.07);
 }
 
@@ -174,14 +127,14 @@ main.assistant-page {
     display: flex;
     align-items: center;
     gap: 0.55rem;
-    margin: 0 0.25rem 0.6rem;
+    margin: 0.15rem 0.25rem 0.5rem;
     padding: 0.6rem 1.1rem;
     border: 1px solid rgba(101, 81, 138, 0.1);
     border-radius: 1.4rem;
     border-top-left-radius: 0.35rem;
-    background: linear-gradient(145deg, #f2ecfc 0%, #ede6f7 100%);
+    background: linear-gradient(145deg, #f3eeff 0%, #ece5f8 100%);
     color: #8a7e92;
-    font-size: 0.78rem;
+    font-size: 0.8rem;
     line-height: 1.4;
     box-shadow: 0 2px 8px rgba(101, 81, 138, 0.07);
     animation: msg-appear 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
@@ -207,68 +160,40 @@ main.assistant-page {
 }
 
 /* =====================================================
-   PRESET / QUICK QUESTIONS PANEL
+   PRESET PANEL  — 底部固定區
    ===================================================== */
 .assistant-presets {
-    position: sticky;
-    bottom: 0;
-    z-index: 2;
-    padding: 0.85rem 0 0;   /* reduced from 1.4rem */
-    margin-top: auto;
-    border-top: 1px solid rgba(101, 81, 138, 0.1);
+    flex-shrink: 0;
+    padding-top: 1rem;
+    margin-top: 0.5rem;
+    border-top: 1.5px solid rgba(101, 81, 138, 0.1);
     background: rgba(255, 255, 255, 0.97);
     backdrop-filter: blur(12px);
 }
 
-.assistant-presets-heading {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
+.assistant-presets-hint {
+    margin: 0 0 0.85rem;
+    font-size: 0.82rem;
+    color: #9a8fa2;
+    line-height: 1.55;
 }
 
-.assistant-presets-heading > .material-symbols-outlined {
-    font-size: 1.35rem;
-    color: #8f6b4f;
-    opacity: 0.65;
-    font-variation-settings: 'FILL' 1;
-}
-
-.assistant-section-label {
-    margin: 0 0 0.1rem;
-    font-size: 0.62rem;
-    font-weight: 800;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: #8f6b4f;
-    opacity: 0.8;
-}
-
-.assistant-presets h2 {
-    margin: 0;
-    font-family: 'Plus Jakarta Sans', sans-serif;
-    font-size: 0.88rem;
-    font-weight: 700;
-    color: #3b2f4a;
-}
-
-/* ---------- Baby Cards ---------- */
+/* ---------- Baby Cards (大版) ---------- */
 .assistant-baby-list {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.45rem;          /* reduced from 0.6rem */
-    margin-top: 0.6rem;    /* reduced from 0.9rem */
+    gap: 0.6rem;
 }
 
 .assistant-baby-card {
     display: flex;
     align-items: center;
-    gap: 0.5rem;           /* reduced from 0.65rem */
-    min-width: 8rem;       /* reduced from 9.5rem */
-    padding: 0.5rem 0.75rem; /* reduced from 0.7rem 0.9rem */
-    border: 1.5px solid rgba(101, 81, 138, 0.15);
-    border-radius: 0.85rem;
-    background: #fff;
+    gap: 0.7rem;
+    padding: 0.7rem 1rem 0.7rem 0.75rem;
+    min-width: 10rem;
+    border: 2px solid rgba(101, 81, 138, 0.14);
+    border-radius: 1.1rem;
+    background: #fafafa;
     color: #453b4b;
     cursor: pointer;
     text-align: left;
@@ -282,60 +207,55 @@ main.assistant-page {
     box-shadow: 0 1px 4px rgba(101, 81, 138, 0.07);
 }
 
-/* Shimmer highlight on selected */
-.assistant-baby-card::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(135deg, rgba(255,255,255,0.65) 0%, rgba(255,255,255,0) 60%);
-    opacity: 0;
-    transition: opacity 200ms ease;
-    pointer-events: none;
-}
-
 .assistant-baby-card:hover {
-    border-color: rgba(143, 107, 79, 0.4);
-    background: #fffaf6;
+    border-color: rgba(101, 81, 138, 0.38);
+    background: #f4eeff;
     box-shadow:
-        0 3px 10px rgba(143, 107, 79, 0.13),
-        0 1px 3px rgba(101, 81, 138, 0.07);
+        0 4px 14px rgba(101, 81, 138, 0.14),
+        0 1px 4px  rgba(101, 81, 138, 0.08);
     transform: translateY(-2px);
 }
 
 .assistant-baby-card.is-selected {
-    border-color: #8f6b4f;
-    background: linear-gradient(145deg, #fff9f2 0%, #f6f0ff 100%);
+    border-color: #65518a;
+    background: linear-gradient(145deg, #f0e8ff 0%, #e8dff7 100%);
     box-shadow:
-        0 0 0 3px rgba(143, 107, 79, 0.12),
-        0 5px 16px rgba(101, 81, 138, 0.14);
+        0 0 0 3px rgba(101, 81, 138, 0.14),
+        0 6px 20px rgba(101, 81, 138, 0.16);
     transform: translateY(-2px);
 }
 
-.assistant-baby-card.is-selected::before { opacity: 1; }
-
-.assistant-baby-icon {
-    color: #65518a;
-    font-size: 1.1rem;     /* reduced from 1.3rem */
+/* Avatar 圓圈 */
+.assistant-baby-avatar {
+    width: 2.4rem;
+    height: 2.4rem;
+    border-radius: 50%;
+    background: linear-gradient(145deg, #e8dff7 0%, #d6c9f0 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
     flex-shrink: 0;
-    font-variation-settings: 'FILL' 1;
-    transition: transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1), color 200ms ease;
+    color: #65518a;
+    font-size: 1.3rem;
+    transition: transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1), background 200ms ease;
 }
 
-.assistant-baby-card.is-selected .assistant-baby-icon {
-    color: #7460a0;
-    transform: scale(1.12);
+.assistant-baby-card.is-selected .assistant-baby-avatar {
+    background: linear-gradient(145deg, #c4b0e8 0%, #a98ed4 100%);
+    color: #fff;
+    transform: scale(1.1);
 }
 
-.assistant-baby-card span:nth-child(2) {
+.assistant-baby-info {
     display: flex;
     flex-direction: column;
-    gap: 0.08rem;
+    gap: 0.1rem;
     flex: 1;
     min-width: 0;
 }
 
 .assistant-baby-card strong {
-    font-size: 0.82rem;    /* reduced from 0.87rem */
+    font-size: 0.9rem;
     font-weight: 700;
     white-space: nowrap;
     overflow: hidden;
@@ -344,16 +264,16 @@ main.assistant-page {
 }
 
 .assistant-baby-card small {
-    font-size: 0.63rem;    /* reduced from 0.67rem */
+    font-size: 0.7rem;
     font-weight: 500;
     color: #9a8fa2;
 }
 
-.assistant-baby-card.is-selected small { color: #8f6b4f; }
+.assistant-baby-card.is-selected small { color: #7460a0; }
 
 .assistant-baby-check {
     margin-left: auto;
-    font-size: 1.05rem;
+    font-size: 1.15rem;
     color: #d4c8dd;
     flex-shrink: 0;
     transition:
@@ -368,13 +288,11 @@ main.assistant-page {
 }
 
 /* =====================================================
-   QUESTION LIST — SLIDE-DOWN WRAPPER
-   Uses the CSS grid trick: grid-template-rows 0fr → 1fr
-   so height animates without JS measuring.
+   QUESTION LIST — SLIDE-DOWN
    ===================================================== */
 .assistant-ql-wrap {
     display: grid;
-    grid-template-rows: 0fr;       /* collapsed */
+    grid-template-rows: 0fr;
     opacity: 0;
     transition:
         grid-template-rows 420ms cubic-bezier(0.22, 1, 0.36, 1),
@@ -382,155 +300,117 @@ main.assistant-page {
 }
 
 .assistant-ql-wrap.is-open {
-    grid-template-rows: 1fr;       /* expanded */
+    grid-template-rows: 1fr;
     opacity: 1;
 }
 
-/* Must have overflow:hidden so content clips while collapsing */
 .assistant-ql-inner {
     overflow: hidden;
-    /* small bottom padding so box-shadow on cards isn't clipped */
-    padding-bottom: 0.35rem;
+    padding-bottom: 0.5rem;
 }
 
-/* ---------- Question list inner content ---------- */
 .assistant-question-list {
-    padding-top: 0.65rem;   /* reduced from 1rem */
-    /* 2-column grid: hint spans full width, groups sit side by side */
+    padding-top: 0.75rem;
     display: grid;
     grid-template-columns: 1fr 1fr;
-    column-gap: 1.1rem;
+    column-gap: 1rem;
     align-items: start;
+    gap: 0.75rem;
 }
 
-/* Hint spans both columns */
-.assistant-question-hint {
-    grid-column: 1 / -1;
-    margin: 0 0 0.45rem;   /* reduced from 0.75rem */
-    font-size: 0.76rem;
-    color: #9a8fa2;
-    line-height: 1.45;
-}
-
-/* Hint slide-in animation when baby is switched */
-.assistant-question-hint.hint-slide {
-    animation: hint-slide 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-@keyframes hint-slide {
-    from { opacity: 0; transform: translateX(-6px); }
-    to   { opacity: 1; transform: translateX(0); }
-}
-
+/* ---------- Group cards ---------- */
 .assistant-question-group {
     display: flex;
     flex-direction: column;
-    gap: 0.35rem;           /* reduced from 0.45rem */
-}
-
-/* No extra margin needed — grid column-gap handles spacing */
-.assistant-question-group + .assistant-question-group {
-    margin-top: 0;
+    gap: 0.55rem;
+    padding: 0.85rem 1rem;
+    border-radius: 1.1rem;
 }
 
 .assistant-question-group h3 {
-    margin: 0 0 0.1rem;
+    margin: 0;
     display: flex;
     align-items: center;
-    gap: 0.28rem;
+    gap: 0.35rem;
     font-family: 'Plus Jakarta Sans', sans-serif;
-    font-size: 0.64rem;
+    font-size: 0.72rem;
     font-weight: 800;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    opacity: 0.85;
 }
 
 .assistant-question-group h3 .material-symbols-outlined {
-    font-size: 0.95rem;
+    font-size: 1rem;
     font-variation-settings: 'FILL' 1;
     flex-shrink: 0;
 }
 
-/* ── 目前成長 — purple / lavender theme ── */
+/* ── 目前成長 — purple theme ── */
 .assistant-question-group--now {
-    padding: 0.6rem 0.7rem;
     background: linear-gradient(150deg, rgba(101, 81, 138, 0.07) 0%, rgba(180, 155, 220, 0.04) 100%);
-    border: 1px solid rgba(101, 81, 138, 0.13);
-    border-top: 2.5px solid #65518a;
-    border-radius: 0.85rem;
-    box-shadow: 0 2px 8px rgba(101, 81, 138, 0.07);
+    border: 1.5px solid rgba(101, 81, 138, 0.14);
+    border-top: 3px solid #65518a;
+    box-shadow: 0 2px 10px rgba(101, 81, 138, 0.07);
 }
 
-.assistant-question-group--now h3 {
-    color: #65518a;
-}
+.assistant-question-group--now h3 { color: #65518a; }
 
-/* ── 歷史成長 — amber / warm-brown theme ── */
+/* ── 歷史成長 — amber theme ── */
 .assistant-question-group--history {
-    padding: 0.6rem 0.7rem;
     background: linear-gradient(150deg, rgba(143, 107, 79, 0.07) 0%, rgba(200, 165, 120, 0.04) 100%);
-    border: 1px solid rgba(143, 107, 79, 0.16);
-    border-top: 2.5px solid #8f6b4f;
-    border-radius: 0.85rem;
-    box-shadow: 0 2px 8px rgba(143, 107, 79, 0.08);
+    border: 1.5px solid rgba(143, 107, 79, 0.16);
+    border-top: 3px solid #8f6b4f;
+    box-shadow: 0 2px 10px rgba(143, 107, 79, 0.08);
 }
 
-.assistant-question-group--history h3 {
-    color: #8f6b4f;
-}
+.assistant-question-group--history h3 { color: #8f6b4f; }
 
-/* History group buttons — amber hover scheme */
-.assistant-question-group--history .assistant-question-buttons button {
-    border-color: rgba(143, 107, 79, 0.2);
-    color: #5c4231;
-}
-
-.assistant-question-group--history .assistant-question-buttons button:hover:not(:disabled) {
-    border-color: #8f6b4f;
-    background: #fff8f2;
-    color: #7a5232;
-    box-shadow: 0 3px 10px rgba(143, 107, 79, 0.18);
-    transform: translateY(-1px) scale(1.03);
-}
-
-.assistant-question-group--history .assistant-question-buttons button:active:not(:disabled) {
-    transform: translateY(0) scale(0.97);
-}
-
-/* ---------- Question buttons ---------- */
+/* ---------- Question buttons (大版) ---------- */
 .assistant-question-buttons {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.4rem;            /* reduced from 0.5rem */
+    gap: 0.5rem;
 }
 
 .assistant-question-buttons button {
-    padding: 0.38rem 0.8rem;   /* reduced from 0.48rem 0.95rem */
-    border: 1.5px solid rgba(101, 81, 138, 0.16);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.38rem 0.8rem;
+    border: 1.5px solid rgba(101, 81, 138, 0.18);
     border-radius: 999px;
     font-family: 'Be Vietnam Pro', sans-serif;
-    font-size: 0.73rem;    /* reduced from 0.76rem */
+    font-size: 0.73rem;
     font-weight: 600;
     color: #453b4b;
     background: #fff;
     cursor: pointer;
-    box-shadow: 0 1px 3px rgba(101, 81, 138, 0.07);
+    box-shadow: 0 1px 4px rgba(101, 81, 138, 0.08);
     transition:
         border-color     180ms ease,
         background-color 180ms ease,
         color            180ms ease,
         box-shadow       180ms ease,
-        transform        180ms cubic-bezier(0.34, 1.56, 0.64, 1),
+        transform        200ms cubic-bezier(0.34, 1.56, 0.64, 1),
         opacity          180ms ease;
+}
+
+.assistant-question-buttons button .material-symbols-outlined {
+    font-size: 1rem;
+    font-variation-settings: 'FILL' 1;
+    opacity: 0.75;
 }
 
 .assistant-question-buttons button:hover:not(:disabled) {
     border-color: #65518a;
-    background: #f3effe;
+    background: #f0e8ff;
     color: #65518a;
-    box-shadow: 0 3px 10px rgba(101, 81, 138, 0.15);
-    transform: translateY(-1px) scale(1.03);
+    box-shadow: 0 4px 14px rgba(101, 81, 138, 0.18);
+    transform: translateY(-2px) scale(1.04);
+}
+
+.assistant-question-buttons button:hover:not(:disabled) .material-symbols-outlined {
+    opacity: 1;
 }
 
 .assistant-question-buttons button:active:not(:disabled) {
@@ -542,7 +422,20 @@ main.assistant-page {
     cursor: wait;
 }
 
-/* Pop-in animation class added by JS with stagger delays */
+/* History group buttons — amber hover */
+.assistant-question-group--history .assistant-question-buttons button {
+    border-color: rgba(143, 107, 79, 0.2);
+    color: #5c4231;
+}
+
+.assistant-question-group--history .assistant-question-buttons button:hover:not(:disabled) {
+    border-color: #8f6b4f;
+    background: #fff8f2;
+    color: #7a5232;
+    box-shadow: 0 4px 14px rgba(143, 107, 79, 0.18);
+}
+
+/* Pop-in animation */
 .btn-pop {
     animation: btn-pop 320ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
@@ -555,13 +448,13 @@ main.assistant-page {
 /* ---------- Empty State ---------- */
 .assistant-empty-state {
     margin: 1rem 0 0;
-    padding: 1.2rem 1.4rem;
+    padding: 1.4rem 1.6rem;
     border: 1.5px dashed rgba(101, 81, 138, 0.2);
-    border-radius: 1rem;
+    border-radius: 1.1rem;
     background: rgba(101, 81, 138, 0.03);
     color: #9a8fa2;
-    font-size: 0.82rem;
-    line-height: 1.65;
+    font-size: 0.85rem;
+    line-height: 1.7;
 }
 
 /* =====================================================
@@ -569,28 +462,17 @@ main.assistant-page {
    ===================================================== */
 @media (max-width: 640px) {
     .assistant-page {
-        height: calc(100vh - 64px);  /* nav is slightly shorter on mobile */
-        padding: 0.6rem 0.6rem;
+        height: calc(100vh - 64px - 56px);
+        padding: 0.5rem;
     }
 
     .assistant-panel {
-        /* remove min-height — flex:1 on panel fills the page already */
-        padding: 1rem 0.9rem;
-        border-radius: 1.25rem;
-        margin-bottom: 1.5rem;  /* small gap to bottom of page */
+        padding: 1rem 0.9rem 0.75rem;
+        border-radius: 1.35rem;
     }
 
-    .assistant-heading h1 {
-        font-size: 1.2rem;
-    }
-
-    .assistant-heading p:last-child {
-        display: none;
-    }
-
-    .assistant-logo {
-        width: 3rem;
-        height: 3rem;
+    .assistant-messages {
+        font-size: 0.9rem;
     }
 
     .assistant-message {
@@ -598,8 +480,23 @@ main.assistant-page {
         font-size: 0.88rem;
     }
 
+    .assistant-question-list {
+        grid-template-columns: 1fr;
+    }
+
     .assistant-baby-card {
-        min-width: 7.5rem;
-        padding: 0.6rem 0.75rem;
+        min-width: 8.5rem;
+        padding: 0.6rem 0.8rem 0.6rem 0.65rem;
+    }
+
+    .assistant-baby-avatar {
+        width: 2rem;
+        height: 2rem;
+        font-size: 1.1rem;
+    }
+
+    .assistant-question-buttons button {
+        font-size: 0.73rem;
+        padding: 0.38rem 0.8rem;
     }
 }
