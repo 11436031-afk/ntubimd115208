@@ -350,21 +350,11 @@ def pregnancyrecord(request):
 
 
 def pregnancyrecord_new(request):
-    raw = request.GET.get('date')
-    try:
-        selected_date = datetime.date.fromisoformat(raw) if raw else datetime.date.today()
-    except Exception:
-        selected_date = datetime.date.today()
-
-    context = {
-        'selected_date': selected_date,
-        'selected_date_iso': selected_date.isoformat(),
-        'today_iso': datetime.date.today().isoformat(),
-        'selected_month_label': f'{selected_date.year}年 {selected_date.month}月',
-        'selected_month_abbr': selected_date.strftime('%b').upper(),
-        'selected_day': selected_date.day,
-    }
-    return render(request, 'pregnancy/pregnancyrecord_new.html', context)
+    query = request.META.get('QUERY_STRING')
+    target = '/pregnancyrecord/'
+    if query:
+        target = f'{target}?{query}'
+    return redirect(target)
 
 
 def _build_feelings():

@@ -48,18 +48,18 @@
                 </div>
 
                 <div class="space-y-3">
-                    <!-- 提醒日期 -->
+                    <!-- 待辦日期 -->
                     <div class="space-y-1">
-                        <label class="text-xs font-bold text-on-surface-variant uppercase tracking-wider pl-1">提醒日期</label>
+                        <label class="text-xs font-bold text-on-surface-variant uppercase tracking-wider pl-1">待辦日期</label>
                         <div class="relative">
                             <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant/50 text-[20px]">calendar_month</span>
                             <input name="record_date" type="date" required value="{{ form_data.record_date|default:selected_date_iso }}" class="w-full bg-surface-container-low border-none rounded-lg pl-10 pr-3 py-2.5 text-on-surface focus:ring-2 focus:ring-tertiary/30 transition-all text-sm outline-none font-medium" />
                         </div>
                     </div>
 
-                    <!-- 提醒類別 -->
+                    <!-- 待辦類別 -->
                     <div class="space-y-1">
-                        <label class="text-xs font-bold text-on-surface-variant uppercase tracking-wider pl-1">提醒類別</label>
+                        <label class="text-xs font-bold text-on-surface-variant uppercase tracking-wider pl-1">待辦類別</label>
                         <div class="relative">
                             <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant/50 text-[20px]">category</span>
                             <select name="carestatus_id" required class="w-full bg-surface-container-low border-none rounded-lg pl-10 pr-9 py-2.5 text-on-surface focus:ring-2 focus:ring-tertiary/30 transition-all text-sm outline-none font-medium appearance-none bg-none">
@@ -72,9 +72,9 @@
                         </div>
                     </div>
 
-                    <!-- 提醒時間 -->
+                    <!-- 待辦時間 -->
                     <div class="space-y-1">
-                        <label class="text-xs font-bold text-on-surface-variant uppercase tracking-wider pl-1">提醒時間 (時:分)</label>
+                        <label class="text-xs font-bold text-on-surface-variant uppercase tracking-wider pl-1">待辦時間 (時:分)</label>
                         <div class="relative">
                             <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant/50 text-[20px]">schedule</span>
                             <input name="record_time" type="time" required value="{{ form_data.record_time|default:"" }}" class="w-full bg-surface-container-low border-none rounded-lg pl-10 pr-3 py-2.5 text-on-surface focus:ring-2 focus:ring-tertiary/30 transition-all text-sm outline-none font-medium" />

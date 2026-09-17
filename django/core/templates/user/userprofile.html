@@ -77,39 +77,6 @@
             <!-- 帳號綁定：依登入方式僅開放綁定另一個平台 -->
             <div class="p-8 pt-6 space-y-3">
                 <h3 class="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1">帳號綁定</h3>
-
-                <!-- Google 帳號 -->
-                <div class="flex items-center justify-between p-4 bg-surface-container-low/50 rounded-2xl">
-                    <div class="flex items-center gap-3">
-                        <div class="w-9 h-9 rounded-full bg-white shadow-sm flex items-center justify-center shrink-0">
-                            <svg width="18" height="18" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
-                                <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l6-6C34.6 5.1 29.6 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21 21-9.4 21-21c0-1.2-.1-2.4-.4-3.5z"/>
-                                <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.6 18.9 13 24 13c3.1 0 5.8 1.1 8 3l6-6C34.6 5.1 29.6 3 24 3 15.8 3 8.7 7.6 6.3 14.7z"/>
-                                <path fill="#4CAF50" d="M24 45c5.5 0 10.4-1.9 14.2-5.1l-6.6-5.4C29.6 36.3 27 37.2 24 37.2c-5.2 0-9.6-3.3-11.2-7.9l-6.5 5C8.6 40.4 15.7 45 24 45z"/>
-                                <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.2 4.2-4.1 5.5l6.6 5.4C41.4 36.1 45 30.7 45 24c0-1.2-.1-2.4-.4-3.5z"/>
-                            </svg>
-                        </div>
-                        <div>
-                            <p class="text-sm font-bold text-on-surface">Google 帳號</p>
-                            {% if current_user.google_linked %}
-                            <p class="text-[10px] text-on-surface-variant">已綁定</p>
-                            {% else %}
-                            <p class="text-[10px] text-on-surface-variant/60">尚未綁定</p>
-                            {% endif %}
-                        </div>
-                    </div>
-                    {% if current_user.google_linked %}
-                    <span class="role-badge role-badge-owner">
-                        <span class="material-symbols-outlined text-[13px] mr-0.5">check_circle</span>已綁定
-                    </span>
-                    {% else %}
-                    <button onclick="window.location.href='{% url 'bind_google_account' %}'"
-                        class="shrink-0 bg-primary/10 text-primary text-xs font-bold px-4 py-2 rounded-full hover:bg-primary hover:text-white transition-all cursor-pointer">
-                        綁定
-                    </button>
-                    {% endif %}
-                </div>
-
                 <!-- LINE 帳號 -->
                 <div class="flex items-center justify-between p-4 bg-surface-container-low/50 rounded-2xl">
                     <div class="flex items-center gap-3">

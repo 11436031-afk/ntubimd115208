@@ -28,12 +28,6 @@ class UserProfile(models.Model):
         self.line_id = value
 
     @property
-    def google_linked(self):
-        """是否已綁定 Google 帳號：以 email 欄位本身作為判斷依據
-        （真正的 Google 信箱才算，LINE 自動產生的佔位 email 不算）"""
-        return bool(self.email) and not self.email.endswith(self.LINE_PLACEHOLDER_EMAIL_SUFFIX)
-
-    @property
     def line_linked(self):
         """是否已綁定 LINE 帳號（無論是登入用或後續額外綁定）"""
         return bool(self.line_id)
