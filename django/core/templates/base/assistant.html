@@ -5,19 +5,19 @@
 <link rel="stylesheet" href="{% static 'css/assistant.css' %}" />
 {% endblock %}
 {% block content %}
+<header class="bg-surface/70 backdrop-blur-md px-4 w-full transition-all duration-500 md:px-8 lg:px-14 xl:px-32 2xl:px-64 h-14 pt-2">
+    <div class="flex items-center gap-3">
+        <a href="/babyinformation/" class="inline-flex items-center gap-2 rounded-full p-2 hover:bg-surface-container-low transition-colors active:scale-95 duration-200" aria-label="返回">
+            <span class="material-symbols-outlined text-primary text-[28px]" style="font-variation-settings: 'FILL' 1, 'wght' 700, 'GRAD' 0, 'opsz' 24;">arrow_back</span>
+            <span class="font-extrabold text-2xl text-primary tracking-tight">嬰幼兒成長評估助手</span>
+        </a>
+    </div>
+</header>
 <main class="assistant-page">
     <section class="assistant-panel" aria-labelledby="assistant-title">
 
         <!-- CSRF for AJAX -->
         <input type="hidden" id="csrf-token" value="{{ csrf_token }}" />
-
-        <!-- ── Header ── -->
-        <div class="assistant-heading">
-            <div>
-                <h1 id="assistant-title">寶寶成長評估助手</h1>
-                <p>根據寶寶的成長紀錄，詢問身高、體重、頭圍與 WHO 百分位。</p>
-            </div>
-        </div>
 
         <!-- ── Messages ── -->
         <div id="assistant-messages" class="assistant-messages" aria-live="polite">
@@ -28,15 +28,11 @@
 
         <!-- ── Quick Presets ── -->
         <section class="assistant-presets" aria-labelledby="assistant-presets-title">
-            <div class="assistant-presets-heading">
-                <div>
-                    <!-- <h2 id="assistant-presets-title">先選擇要查看的寶寶</h2> -->
-                </div>
-                <!-- <span class="material-symbols-outlined" aria-hidden="true">touch_app</span> -->
-            </div>
+
+            <p class="assistant-presets-hint">根據寶寶的成長紀錄，評估身高、體重、頭圍與 WHO 百分位。</p>
 
             {% if assistant_babies %}
-                <!-- Baby cards (no pre-selection; JS handles it on click) -->
+                <!-- Baby cards -->
                 <div class="assistant-baby-list" role="list">
                     {% for item in assistant_babies %}
                         <button
@@ -45,8 +41,11 @@
                             data-baby-name="{{ item.baby.name }}"
                             role="listitem"
                         >
-                            <span class="assistant-baby-icon material-symbols-outlined" aria-hidden="true">child_care</span>
-                            <span>
+                            <!-- Avatar circle -->
+                            <span class="assistant-baby-avatar" aria-hidden="true">
+                                <span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1,'wght' 600;">child_care</span>
+                            </span>
+                            <span class="assistant-baby-info">
                                 <strong>{{ item.baby.name }}</strong>
                                 <small>{{ item.role }}</small>
                             </span>
@@ -55,14 +54,10 @@
                     {% endfor %}
                 </div>
 
-                <!--
-                    Question list — hidden by default (grid-template-rows: 0fr).
-                    JS adds .is-open on first baby click → slides down.
-                -->
+                <!-- Question list — hidden by default -->
                 <div class="assistant-ql-wrap" id="question-list-wrap">
                     <div class="assistant-ql-inner">
                         <div class="assistant-question-list">
-                            <!-- <p class="assistant-question-hint" id="question-hint">點選成長項目</p> -->
 
                             <div class="assistant-question-group assistant-question-group--now">
                                 <h3>
@@ -70,10 +65,18 @@
                                     目前成長
                                 </h3>
                                 <div class="assistant-question-buttons">
-                                    <button type="button" data-question="目前身高是否符合WHO標準？">身高</button>
-                                    <button type="button" data-question="目前體重是否符合WHO標準？">體重</button>
-                                    <button type="button" data-question="目前頭圍是否符合WHO標準？">頭圍</button>
-                                    <button type="button" data-question="目前成長狀況如何？">綜合成長狀況</button>
+                                    <button type="button" data-question="目前身高是否符合WHO標準？">
+                                        <span class="material-symbols-outlined">height</span>身高
+                                    </button>
+                                    <button type="button" data-question="目前體重是否符合WHO標準？">
+                                        <span class="material-symbols-outlined">monitor_weight</span>體重
+                                    </button>
+                                    <button type="button" data-question="目前頭圍是否符合WHO標準？">
+                                        <span class="material-symbols-outlined">face</span>頭圍
+                                    </button>
+                                    <button type="button" data-question="目前成長狀況如何？">
+                                        <span class="material-symbols-outlined">insights</span>綜合評估
+                                    </button>
                                 </div>
                             </div>
 
@@ -83,12 +86,21 @@
                                     歷史成長
                                 </h3>
                                 <div class="assistant-question-buttons">
-                                    <button type="button" data-question="歷史身高變化是否符合WHO標準？">身高</button>
-                                    <button type="button" data-question="歷史體重變化是否符合WHO標準？">體重</button>
-                                    <button type="button" data-question="歷史頭圍變化是否符合WHO標準？">頭圍</button>
-                                    <button type="button" data-question="歷史成長狀況如何？">綜合成長狀況</button>
+                                    <button type="button" data-question="歷史身高變化是否符合WHO標準？">
+                                        <span class="material-symbols-outlined">height</span>身高
+                                    </button>
+                                    <button type="button" data-question="歷史體重變化是否符合WHO標準？">
+                                        <span class="material-symbols-outlined">monitor_weight</span>體重
+                                    </button>
+                                    <button type="button" data-question="歷史頭圍變化是否符合WHO標準？">
+                                        <span class="material-symbols-outlined">face</span>頭圍
+                                    </button>
+                                    <button type="button" data-question="歷史成長狀況如何？">
+                                        <span class="material-symbols-outlined">insights</span>綜合評估
+                                    </button>
                                 </div>
                             </div>
+
                         </div>
                     </div>
                 </div>
@@ -143,30 +155,21 @@
         /* ════════════════════════════════
            Question-list slide animation
         ════════════════════════════════ */
-
-        /**
-         * Stagger-animate every question button inside qlWrap.
-         * Each button gets the CSS class .btn-pop which plays a
-         * keyframe animation; the delay is set inline per index.
-         */
         const staggerButtons = () => {
             const btns = qlWrap.querySelectorAll('.assistant-question-buttons button');
             btns.forEach((btn, i) => {
-                // reset so animation can replay
                 btn.classList.remove('btn-pop');
-                void btn.offsetWidth;                  // force reflow
+                void btn.offsetWidth;
                 btn.style.animationDelay = `${i * 50 + 60}ms`;
                 btn.classList.add('btn-pop');
             });
         };
 
-        /** First call → slides the list down. Subsequent calls → re-stagger only. */
         const openQuestionList = () => {
             if (!qlWrap) return;
             const isOpen = qlWrap.classList.contains('is-open');
             if (!isOpen) {
                 qlWrap.classList.add('is-open');
-                // wait for grid transition to mostly finish, then stagger buttons
                 setTimeout(staggerButtons, 80);
             } else {
                 staggerButtons();
@@ -183,7 +186,6 @@
                 card.classList.add('is-selected');
                 selectedBaby = card.dataset.babyName;
 
-                // Animate hint text swap
                 if (questionHint) {
                     questionHint.classList.remove('hint-slide');
                     void questionHint.offsetWidth;
@@ -191,7 +193,6 @@
                     questionHint.classList.add('hint-slide');
                 }
 
-                // Open list (or re-stagger if already open and baby changed)
                 if (!isSame || !qlWrap?.classList.contains('is-open')) {
                     openQuestionList();
                 }
