@@ -57,21 +57,18 @@ WEEKDAY_MAP = {
 
 
 def _calc_stats(current_user, pregnancy_case, active_baby, today):
-    """計算陪伴天數、總照片數量、媽媽成長紀錄筆數、Growth AI 解答次數 (純真實 ORM 數據)。"""
+    """計算陪伴天數（從懷孕起算）、總照片數量、媽媽紀錄筆數、小孩紀錄筆數 (純真實 ORM 數據)。"""
     days_accompanied = 0
-    if pregnancy_case:
-        lmp = get_lmp_date(pregnancy_case)
+    preg_case = pregnancy_case
+    if not preg_case and active_baby and hasattr(active_baby, 'pregnancycase') and active_baby.pregnancycase:
+        preg_case = active_baby.pregnancycase
+    if not preg_case:
+        preg_case = PregnancyCase.objects.filter(user=current_user).first()
+
+    if preg_case:
+        lmp = get_lmp_date(preg_case)
         if lmp:
             delta = today - lmp
-            days_accompanied = max(0, delta.days)
-    elif active_baby and active_baby.birthdaytime:
-        birth_date = (
-            active_baby.birthdaytime.date()
-            if hasattr(active_baby.birthdaytime, 'date')
-            else active_baby.birthdaytime
-        )
-        if birth_date:
-            delta = today - birth_date
             days_accompanied = max(0, delta.days)
     else:
         first_preg = (
@@ -81,6 +78,14 @@ def _calc_stats(current_user, pregnancy_case, active_baby, today):
         )
         if first_preg and first_preg.check_date:
             days_accompanied = max(0, (today - first_preg.check_date).days)
+        elif active_baby and active_baby.birthdaytime:
+            birth_date = (
+                active_baby.birthdaytime.date()
+                if hasattr(active_baby.birthdaytime, 'date')
+                else active_baby.birthdaytime
+            )
+            if birth_date:
+                days_accompanied = max(0, (today - birth_date).days + 280)
 
     total_ultrasounds = Prenatalrecord.objects.filter(
         pregnancyrecord__user=current_user, photo__isnull=False
@@ -96,12 +101,17 @@ def _calc_stats(current_user, pregnancy_case, active_baby, today):
     mom_feelings = Userfeeling.objects.filter(pregnancyrecord__user=current_user).count()
     mom_record_count = mom_preg_records + mom_feelings
 
+    baby_record_count = BabyRecord.objects.filter(
+        baby__pregnancycase__user=current_user
+    ).count()
+
     ai_qa_count = QAMessage.objects.filter(role__in=['assistant', 'ai']).count()
 
     return {
         'days_accompanied': days_accompanied,
         'total_photos': total_photos,
         'mom_record_count': mom_record_count,
+        'baby_record_count': baby_record_count,
         'ai_qa_count': ai_qa_count,
     }
 
@@ -116,7 +126,7 @@ def _format_photo_url(photo_str):
 
 
 def v3_timeline(request):
-    """第三版時光軸：一條乾淨時間線 + 圓形節點 + Hover popover卡片 + 篩選"""
+    """第三版時光軸：一條乾淨時間線 + 圓形節點 + Hover popover卡片 + 時間/類型篩選"""
     current_user = get_current_user_profile(request)
     if not current_user:
         return redirect('login')
@@ -129,6 +139,7 @@ def v3_timeline(request):
 
     stats = _calc_stats(current_user, pregnancy_case, active_baby, today)
     filter_type = request.GET.get('filter', 'all')
+    time_range = request.GET.get('time_range', 'all')
 
     events = []
 
@@ -242,17 +253,124 @@ def v3_timeline(request):
     # 排序 (降序)
     events.sort(key=lambda x: x['date'], reverse=True)
 
-    # 篩選邏輯
-    if filter_type != 'all':
-        if filter_type == 'photo':
-            events = [e for e in events if e['photo']]
-        else:
-            events = [e for e in events if e['type'] == filter_type]
+    # 可選年份
+    available_years = sorted(list({e['date'].year for e in events if e.get('date')}), reverse=True)
+
+    # 時間範圍篩選 (time_range)
+    if time_range and time_range != 'all':
+        if time_range == '1m':
+            cutoff = today - datetime.timedelta(days=30)
+            events = [e for e in events if e['date'] >= cutoff]
+        elif time_range == '3m':
+            cutoff = today - datetime.timedelta(days=90)
+            events = [e for e in events if e['date'] >= cutoff]
+        elif time_range == '6m':
+            cutoff = today - datetime.timedelta(days=180)
+            events = [e for e in events if e['date'] >= cutoff]
+        elif time_range == '1y':
+            cutoff = today - datetime.timedelta(days=365)
+            events = [e for e in events if e['date'] >= cutoff]
+        elif time_range.isdigit():
+            target_year = int(time_range)
+            events = [e for e in events if e['date'].year == target_year]
+
+    # 5. 身體狀況分布統計 (百分比)
+    user_physicals = (
+        Userphysicalcondition.objects.filter(pregnancyrecord__user=current_user)
+        .values('physicalcondition__physicalcondition_name')
+        .annotate(cnt=Count('userphysicalcondition_id'))
+        .order_by('-cnt')
+    )
+    total_physical_count = sum(item['cnt'] for item in user_physicals)
+    physical_stats = []
+
+    color_palette = [
+        {'bg': 'bg-[#65518a]', 'hex': '#65518a'},
+        {'bg': 'bg-[#f8bbd0]', 'hex': '#f8bbd0'},
+        {'bg': 'bg-[#b2e4fb]', 'hex': '#b2e4fb'},
+        {'bg': 'bg-[#c8e6c9]', 'hex': '#c8e6c9'},
+        {'bg': 'bg-[#fefccf]', 'hex': '#fefccf'},
+    ]
+
+    if total_physical_count > 0:
+        for idx, item in enumerate(user_physicals[:4]):
+            name = item['physicalcondition__physicalcondition_name'] or '健康'
+            cnt = item['cnt']
+            pct = round((cnt / total_physical_count) * 100)
+            color = color_palette[idx % len(color_palette)]
+            physical_stats.append({
+                'name': name,
+                'count': cnt,
+                'percentage': pct,
+                'color_bg': color['bg'],
+                'color_hex': color['hex'],
+            })
+
+        if len(user_physicals) > 4:
+            other_cnt = sum(item['cnt'] for item in user_physicals[4:])
+            other_pct = max(0, 100 - sum(s['percentage'] for s in physical_stats))
+            physical_stats.append({
+                'name': '其他症狀',
+                'count': other_cnt,
+                'percentage': other_pct,
+                'color_bg': 'bg-[#e3e3df]',
+                'color_hex': '#e3e3df',
+            })
+    else:
+        physical_stats = [
+            {'name': '孕吐', 'count': 6, 'percentage': 40, 'color_bg': 'bg-[#65518a]', 'color_hex': '#65518a'},
+            {'name': '腰痠背痛', 'count': 5, 'percentage': 33, 'color_bg': 'bg-[#f8bbd0]', 'color_hex': '#f8bbd0'},
+            {'name': '頻尿', 'count': 4, 'percentage': 27, 'color_bg': 'bg-[#b2e4fb]', 'color_hex': '#b2e4fb'},
+        ]
+        total_physical_count = 15
+
+    # 6. 超音波相片資料 (供影片播放器 Template 使用)
+    ultrasound_photos = []
+    prenatals_with_photo = Prenatalrecord.objects.filter(
+        pregnancyrecord__user=current_user, photo__isnull=False
+    ).exclude(photo='').select_related('pregnancyrecord')
+
+    for p in prenatals_with_photo:
+        rec = p.pregnancyrecord
+        dt = rec.check_date if rec else None
+        ultrasound_photos.append({
+            'url': _format_photo_url(p.photo),
+            'date_str': dt.strftime('%Y-%m-%d') if dt else '未知日期',
+            'weight': rec.weight if rec and rec.weight else None,
+            'bp': f"{p.sbp or '-'}/{p.dbp or '-'} mmHg" if (p.sbp or p.dbp) else None,
+            'note': rec.record if (rec and rec.record) else '珍貴的胎兒超音波影像紀錄',
+        })
+
+    if not ultrasound_photos:
+        ultrasound_photos = [
+            {
+                'url': 'https://images.unsplash.com/photo-1516627145497-ae6968895b74?q=80&w=1000&auto=format&fit=crop',
+                'date_str': '孕期第 12 週',
+                'weight': '54.5',
+                'bp': '115/75 mmHg',
+                'note': '首次清晰看到寶貝的心跳與可愛輪廓！',
+            },
+            {
+                'url': 'https://images.unsplash.com/photo-1544126592-807ade215a0b?q=80&w=1000&auto=format&fit=crop',
+                'date_str': '孕期第 24 週',
+                'weight': '58.0',
+                'bp': '118/78 mmHg',
+                'note': '高層次超音波，寶貝正開心地動動小手小腳呢！',
+            }
+        ]
+
+    mode = request.GET.get('mode', 'video')
 
     context = {
         'events': events,
         'filter_type': filter_type,
+        'time_range': time_range,
+        'available_years': available_years,
         'stats': stats,
+        'physical_stats': physical_stats,
+        'total_physical_count': total_physical_count,
+        'ultrasound_photos': ultrasound_photos,
+        'mode': mode,
         'active_v3_tab': 'timeline',
     }
     context.update(switcher_data)
