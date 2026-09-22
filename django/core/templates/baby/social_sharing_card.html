@@ -19,19 +19,20 @@
 {% block content %}
 <div class="bg-background text-on-surface min-h-screen">
     <!-- Header -->
-    <header class="bg-[#f7f6f3]/70 backdrop-blur-md sticky top-0 z-50 flex justify-between items-center px-6 py-4 w-full border-b border-surface-container-high transition-all duration-500 md:px-8 lg:px-16 xl:px-32 2xl:px-64">
+    <header id="edit-profile-header" class="sticky top-0 z-50 bg-[#f7f6f3]/70 backdrop-blur-md flex justify-between items-center px-6 py-4 w-full transition-all duration-500 md:px-8 lg:px-16 xl:px-32 2xl:px-64">
         <div class="flex items-center gap-3">
-            <a href="{% url 'babyinformation' %}" class="p-2 hover:bg-surface-container-low transition-colors active:scale-95 duration-200 rounded-full cursor-pointer">
-                <span class="material-symbols-outlined text-primary">arrow_back</span>
+            <a href="/babyinformation/" class="inline-flex items-center gap-2 rounded-full p-2 hover:bg-surface-container-low transition-colors active:scale-95 duration-200" aria-label="返回">
+                <span class="material-symbols-outlined text-primary text-[28px]" style="font-variation-settings: 'FILL' 1, 'wght' 700, 'GRAD' 0, 'opsz' 24;">arrow_back</span>
+                <span class="tfont-headline font-extrabold text-2xl text-primary tracking-tight">成長里程碑分享卡</span>
             </a>
-            <h1 class="font-headline font-semibold tracking-tight text-lg text-primary">生成精美里程碑分享卡</h1>
         </div>
     </header>
+
 
     <!-- Main Content -->
     <main class="max-w-7xl mx-auto px-4 py-8 lg:px-8">
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            
+
             <!-- Left Side: Config Panel -->
             <div class="lg:col-span-5 space-y-6 bg-surface-container-lowest p-6 rounded-[2rem] shadow-sm border border-surface-container-low">
                 <div>
@@ -66,12 +67,12 @@
                     <div class="grid grid-cols-2 gap-4">
                         <div class="space-y-1.5">
                             <label class="text-xs font-bold text-on-surface-variant">寶寶暱稱</label>
-                            <input type="text" id="card-baby-name" value="{{ baby_name }}" placeholder="例如：樂樂" 
+                            <input type="text" id="card-baby-name" value="{{ baby_name }}" placeholder="例如：樂樂"
                                    class="w-full bg-surface-container-low text-on-surface border border-surface-container-high rounded-xl px-4 py-2.5 text-sm font-semibold outline-none focus:ring-2 focus:ring-primary/20">
                         </div>
                         <div class="space-y-1.5">
                             <label class="text-xs font-bold text-on-surface-variant">寶寶月齡/年齡</label>
-                            <input type="text" id="card-baby-age" value="{{ baby_age_text }}" placeholder="例如：3個月12天" 
+                            <input type="text" id="card-baby-age" value="{{ baby_age_text }}" placeholder="例如：3個月12天"
                                    class="w-full bg-surface-container-low text-on-surface border border-surface-container-high rounded-xl px-4 py-2.5 text-sm font-semibold outline-none focus:ring-2 focus:ring-primary/20">
                         </div>
                     </div>
@@ -80,12 +81,12 @@
                     <div class="grid grid-cols-2 gap-4">
                         <div class="space-y-1.5">
                             <label class="text-xs font-bold text-on-surface-variant">里程碑稱號</label>
-                            <input type="text" id="card-milestone-title" value="第一次會翻身囉！" placeholder="例如：第一次抬頭" 
+                            <input type="text" id="card-milestone-title" value="第一次會翻身囉！" placeholder="例如：第一次抬頭"
                                    class="w-full bg-surface-container-low text-on-surface border border-surface-container-high rounded-xl px-4 py-2.5 text-sm font-semibold outline-none focus:ring-2 focus:ring-primary/20">
                         </div>
                         <div class="space-y-1.5">
                             <label class="text-xs font-bold text-on-surface-variant">達成日期</label>
-                            <input type="date" id="card-date" value="{{ current_date }}" 
+                            <input type="date" id="card-date" value="{{ current_date }}"
                                    class="w-full bg-surface-container-low text-on-surface border border-surface-container-high rounded-xl px-4 py-2.5 text-sm font-semibold outline-none focus:ring-2 focus:ring-primary/20">
                         </div>
                     </div>
@@ -98,7 +99,7 @@
                                 <span class="material-symbols-outlined text-xs">edit_calendar</span>當日成長筆記
                             </button>
                         </div>
-                        <textarea id="card-message" rows="3" placeholder="例如：今天寶寶自己翻過去了，全家人都開心地大叫，太神奇的一刻！" 
+                        <textarea id="card-message" rows="3" placeholder="例如：今天寶寶自己翻過去了，全家人都開心地大叫，太神奇的一刻！"
                                   class="w-full bg-surface-container-low text-on-surface border border-surface-container-high rounded-xl px-4 py-3 text-sm font-semibold outline-none focus:ring-2 focus:ring-primary/20 resize-none">今天我自己成功翻過去了！爸爸媽媽好開心，手忙腳亂幫我拍了好多照片呢！</textarea>
                     </div>
 
@@ -108,7 +109,7 @@
                             <label class="text-xs font-bold text-on-surface-variant tracking-wider uppercase">選擇寶寶紀錄/產檢相片</label>
                             <button type="button" id="btn-reset-photo" class="text-xs font-bold text-primary hover:underline">重設相片</button>
                         </div>
-                        
+
                         {% if record_photos %}
                         <!-- Photo Album Grid -->
                         <div class="grid grid-cols-3 gap-2 max-h-[180px] overflow-y-auto pr-1 pb-1">
@@ -129,7 +130,7 @@
                             <span class="material-symbols-outlined text-[28px] text-on-surface-variant/40 block mb-1">no_photography</span>
                             <p class="text-xs font-bold text-on-surface-variant">紀錄中尚無照片</p>
                             <p class="text-[10px] text-on-surface-variant/60 mt-0.5 mb-3">您可點選下方範例圖片來測試卡片效果：</p>
-                            
+
                             <!-- Preset samples -->
                             <div class="flex justify-center gap-3">
                                 <button type="button" class="photo-thumbnail-btn relative w-12 h-12 rounded-xl overflow-hidden border-2 border-surface-container-high hover:border-primary transition-all cursor-pointer group"
@@ -210,7 +211,7 @@
                         <span class="material-symbols-outlined text-[18px]">download</span>
                         下載精美圖卡
                     </button>
-                    
+
                     <div class="grid grid-cols-2 gap-3">
                         <button type="button" id="btn-share-line" class="py-3 bg-[#06C755] hover:bg-[#05b34c] text-white font-bold text-sm rounded-full flex items-center justify-center gap-2 active:scale-98 transition-all shadow-sm">
                             <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
@@ -241,7 +242,7 @@
     document.addEventListener('DOMContentLoaded', function() {
         const canvas = document.getElementById('sharing-card-canvas');
         const ctx = canvas.getContext('2d');
-        
+
         // Input Controls
         const inputBabyName = document.getElementById('card-baby-name');
         const inputBabyAge = document.getElementById('card-baby-age');
@@ -251,16 +252,16 @@
         const btnResetPhoto = document.getElementById('btn-reset-photo');
         const photoBtns = document.querySelectorAll('.photo-thumbnail-btn');
         const milestoneSelector = document.getElementById('milestone-selector');
-        
+
         // Buttons
         const btnDownload = document.getElementById('btn-download');
         const btnTodayNote = document.getElementById('btn-today-note');
         const btnShareLine = document.getElementById('btn-share-line');
         const btnShareNative = document.getElementById('btn-share-native');
-        
+
         // Current loaded image state
         let uploadedImage = null;
-        
+
         // Theme configs (Warm Macaron colors)
         const themes = {
             sakura: {
@@ -314,7 +315,7 @@
                 cloudsColor: 'rgba(235, 226, 212, 0.4)'
             }
         };
-        
+
         function getSelectedTheme() {
             const checkedRadio = document.querySelector('input[name="card-theme"]:checked');
             return themes[checkedRadio ? checkedRadio.value : 'sakura'];
@@ -369,7 +370,7 @@
             ctx.beginPath();
             ctx.arc(cx, cy - 20, 60, Math.PI, 0);
             ctx.fill();
-            
+
             // Bonnet tie
             ctx.fillStyle = '#E08599';
             ctx.beginPath();
@@ -402,14 +403,14 @@
             ctx.beginPath();
             ctx.arc(cx, cy + 22, 10, 0, Math.PI);
             ctx.stroke();
-            
+
             // Decorative sparkles
             ctx.fillStyle = '#FFF275';
             ctx.beginPath();
             ctx.arc(cx - 80, cy - 60, 6, 0, Math.PI * 2);
             ctx.arc(cx + 90, cy - 40, 4, 0, Math.PI * 2);
             ctx.fill();
-            
+
             // Invitation text
             ctx.fillStyle = '#8E8276';
             ctx.font = 'bold 18px "Be Vietnam Pro", "sans-serif"';
@@ -422,7 +423,7 @@
             const theme = getSelectedTheme();
             const width = canvas.width;
             const height = canvas.height;
-            
+
             // 1. Clear Canvas & draw warm gradient background
             ctx.shadowBlur = 0;
             const grad = ctx.createLinearGradient(0, 0, 0, height);
@@ -433,14 +434,14 @@
 
             // 2. Draw cute cloud shape accents in background
             ctx.fillStyle = theme.cloudsColor;
-            
+
             // Top left cloud
             ctx.beginPath();
             ctx.arc(100, 100, 60, 0, Math.PI * 2);
             ctx.arc(160, 90, 70, 0, Math.PI * 2);
             ctx.arc(220, 110, 50, 0, Math.PI * 2);
             ctx.fill();
-            
+
             // Bottom right cloud
             ctx.beginPath();
             ctx.arc(680, 890, 60, 0, Math.PI * 2);
@@ -466,20 +467,20 @@
             const boxX = 100;
             const boxY = 120;
             const boxW = 600;
-            
+
             // Default sizes
             let boxH = 500;
             let photoH = boxH - 70; // 430
-            
+
             const photoX = boxX + 20;
             const photoY = boxY + 20;
             const photoW = boxW - 40; // 560
-            
+
             if (uploadedImage) {
                 const imgW = uploadedImage.width;
                 const imgH = uploadedImage.height;
                 const imageRatio = imgW / imgH;
-                
+
                 // If it is landscape, we can dynamically scale height to avoid empty white spaces
                 if (imageRatio > 1.1) {
                     const targetPhotoH = Math.round(photoW / imageRatio);
@@ -488,7 +489,7 @@
                     boxH = photoH + 70;
                 }
             }
-            
+
             // White polaroid base with shadow
             ctx.shadowColor = 'rgba(74, 63, 53, 0.15)';
             ctx.shadowBlur = 20;
@@ -496,7 +497,7 @@
             ctx.fillStyle = '#FFFFFF';
             ctx.roundRect(boxX, boxY, boxW, boxH, 16);
             ctx.fill();
-            
+
             // Reset shadow for drawing image
             ctx.shadowColor = 'transparent';
             ctx.shadowBlur = 0;
@@ -507,11 +508,11 @@
                 ctx.save();
                 ctx.roundRect(photoX, photoY, photoW, photoH, 8);
                 ctx.clip();
-                
+
                 // Draw a soft background under the contained image
                 ctx.fillStyle = '#FCFAF8';
                 ctx.fillRect(photoX, photoY, photoW, photoH);
-                
+
                 const imgW = uploadedImage.width;
                 const imgH = uploadedImage.height;
                 const r = Math.min(photoW / imgW, photoH / imgH);
@@ -519,7 +520,7 @@
                 const nh = imgH * r;
                 const cx = (photoW - nw) / 2;
                 const cy = (photoH - nh) / 2;
-                
+
                 ctx.drawImage(uploadedImage, photoX + cx, photoY + cy, nw, nh);
                 ctx.restore();
             } else {
@@ -529,7 +530,7 @@
                 ctx.fillStyle = '#FCFAF8';
                 ctx.fillRect(photoX, photoY, photoW, photoH);
                 ctx.restore();
-                
+
                 drawBabyPlaceholder(ctx, photoX + photoW/2, photoY + photoH/2 - 20);
             }
 
@@ -551,27 +552,27 @@
             const boxBottomY = boxY + boxH;
             const dividerY = 920;
             const availableSpace = dividerY - boxBottomY; // e.g. 300px to 415px
-            
+
             // Text values
             const milestoneText = inputMilestoneTitle.value || '第一次學會了！';
             const nameText = inputBabyName.value || '寶寶';
             const ageText = inputBabyAge.value || '3個月';
             const messageVal = inputMessage.value || '今天真是非常棒的一天！';
-            
+
             // Measure message lines
             ctx.font = 'medium 20px "Be Vietnam Pro", sans-serif';
             const lines = getLines(ctx, messageVal, 560);
             const lineSpacing = 32;
             const messageHeight = lines.length * lineSpacing - (lineSpacing - 20);
-            
+
             // Define standard vertical gaps inside the bottom section
             const gap1 = 25;
             const gap2 = 35;
             const totalContentHeight = 40 + gap1 + 44 + gap2 + messageHeight;
-            
+
             // Center the entire content block vertically in the availableSpace
             const startY = boxBottomY + (availableSpace - totalContentHeight) / 2;
-            
+
             // 6. Draw Milestone Title text
             const milestoneY = startY + 30; // Text baseline positioning
             ctx.fillStyle = theme.accentText;
@@ -584,10 +585,10 @@
             ctx.font = 'bold 22px "Be Vietnam Pro", sans-serif';
             const nameWidth = ctx.measureText(nameText).width + 36;
             const ageWidth = ctx.measureText(ageText).width + 36;
-            
+
             const pillHeight = 44;
             const pillSpacing = 15;
-            
+
             const totalPillsWidth = nameWidth + ageWidth + pillSpacing;
             const startPillX = (width - totalPillsWidth) / 2;
 
@@ -598,7 +599,7 @@
             ctx.roundRect(startPillX, pillsY, nameWidth, pillHeight, 22);
             ctx.fill();
             ctx.stroke();
-            
+
             ctx.fillStyle = theme.accentText;
             ctx.textAlign = 'left';
             ctx.fillText(nameText, startPillX + 18, pillsY + pillHeight - 14);
@@ -611,7 +612,7 @@
             ctx.roundRect(agePillX, pillsY, ageWidth, pillHeight, 22);
             ctx.fill();
             ctx.stroke();
-            
+
             ctx.fillStyle = theme.accentText;
             ctx.textAlign = 'left';
             ctx.fillText(ageText, agePillX + 18, pillsY + pillHeight - 14);
@@ -621,7 +622,7 @@
             ctx.fillStyle = '#4E3E2F';
             ctx.font = 'medium 20px "Be Vietnam Pro", sans-serif';
             ctx.textAlign = 'center';
-            
+
             lines.forEach((line, index) => {
                 ctx.fillText(line, width / 2, messageY + 20 + (index * lineSpacing));
             });
@@ -651,7 +652,7 @@
         inputMilestoneTitle.addEventListener('input', updateCanvas);
         inputDate.addEventListener('change', updateCanvas);
         inputMessage.addEventListener('input', updateCanvas);
-        
+
         document.querySelectorAll('input[name="card-theme"]').forEach(radio => {
             radio.addEventListener('change', updateCanvas);
         });
@@ -661,25 +662,25 @@
             milestoneSelector.addEventListener('change', function() {
                 const opt = this.options[this.selectedIndex];
                 if (!opt.value) return;
-                
+
                 const milestoneName = opt.getAttribute('data-name');
                 const milestoneDate = opt.getAttribute('data-date');
                 const photoUrl = opt.getAttribute('data-photo');
                 const recordText = opt.getAttribute('data-record');
-                
+
                 // Auto fill fields
                 inputMilestoneTitle.value = `第一次學會${milestoneName}！`;
                 if (milestoneDate) {
                     inputDate.value = milestoneDate;
                 }
-                
+
                 // Construct a warm suggestion if recordText is empty
                 if (recordText) {
                     inputMessage.value = recordText;
                 } else {
                     inputMessage.value = getWarmSuggestText(milestoneName);
                 }
-                
+
                 // Load photo if available
                 if (photoUrl) {
                     const img = new Image();
@@ -697,7 +698,7 @@
                         showToast("照片載入失敗，已改用預設插畫 🧸");
                     };
                     img.src = photoUrl;
-                    
+
                     // Highlight the matching thumbnail in the album grid
                     photoBtns.forEach(btn => {
                         if (btn.getAttribute('data-url') === photoUrl) {
@@ -711,7 +712,7 @@
                     photoBtns.forEach(btn => btn.classList.remove('ring-4', 'ring-primary', 'border-primary'));
                     updateCanvas();
                 }
-                
+
                 updateCanvas();
             });
         }
@@ -753,15 +754,15 @@
             btn.addEventListener('click', function() {
                 // Clear previous active rings
                 photoBtns.forEach(b => b.classList.remove('ring-4', 'ring-primary', 'border-primary'));
-                
+
                 // Add active ring
                 this.classList.add('ring-4', 'ring-primary', 'border-primary');
-                
+
                 const url = this.getAttribute('data-url');
                 const label = this.getAttribute('data-label');
                 const date = this.getAttribute('data-date');
                 const desc = this.getAttribute('data-desc');
-                
+
                 // Set card fields
                 if (label && label !== "成長紀錄" && label !== "產檢超音波" && label !== "CoLoGrowth") {
                     inputMilestoneTitle.value = label;
@@ -772,7 +773,7 @@
                 if (desc) {
                     inputMessage.value = desc;
                 }
-                
+
                 // Load image to draw on canvas
                 const img = new Image();
                 img.crossOrigin = "anonymous";
@@ -817,7 +818,7 @@
         // Share to LINE logic - Always open White LINE Share window (social-plugins.line.me) with OpenGraph image preview
         btnShareLine.addEventListener('click', function() {
             showToast("正在準備圖卡並開啟 LINE... ⏳");
-            
+
             const dataUrl = canvas.toDataURL('image/png');
             const formData = new FormData();
             formData.append('image_data', dataUrl);
@@ -935,7 +936,7 @@
             toastText.textContent = message;
             toast.classList.remove('opacity-0');
             toast.classList.add('opacity-100');
-            
+
             toastTimeout = setTimeout(() => {
                 toast.classList.remove('opacity-100');
                 toast.classList.add('opacity-0');

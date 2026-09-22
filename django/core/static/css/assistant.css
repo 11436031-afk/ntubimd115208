@@ -62,7 +62,7 @@ main.assistant-page {
 
 /* Empty-state hint inside message area */
 .assistant-messages:empty::before {
-    content: '選擇寶寶後點擊下方問題，開始詢問 AI 助手';
+    content: '選擇寶寶後點擊下方問題，開始詢問 AI 助理';
     display: block;
     margin: auto;
     text-align: center;

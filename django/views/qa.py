@@ -497,7 +497,7 @@ def qa_conversation(request):
         "current_debug": current_debug,
         'current_user': current_user
     }
-    return render(request, "base/qa_conversation.html", context)
+    return render(request, "AI/qa_conversation.html", context)
 
 
 def test_n8n_webhook(request):

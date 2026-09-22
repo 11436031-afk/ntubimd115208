@@ -166,12 +166,12 @@ def build_growth_timeline_context(baby):
 
 
 # mom_records 支援 off（完全隱藏媽媽紀錄）；其他功能只有 view/edit
-FEATURE_KEYS = ('baby_records', 'mom_records', 'care_records')
+FEATURE_KEYS = ('baby_records', 'mom_records', 'care_records', 'assistant')
 PERMISSION_LEVELS = ('off', 'view', 'edit')
 
 # features 中，只有 mom_records 的 off 真正有效（拒絕查看）；
 # 其他 feature 的 off 視為 view（向下相容舊資料）
-_OFF_BLOCKS_VIEW = {'mom_records'}
+_OFF_BLOCKS_VIEW = {'mom_records', 'assistant'}
 
 def get_permission(member, feature, default='view'):
     """讀取某位協助者對某功能的權限等級。

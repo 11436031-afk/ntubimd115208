@@ -8,8 +8,9 @@ from django.db.models import Q
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
 
-from core.models import BabyInformation
+from core.models import BabyInformation, FamilyMember
 from views.session_utils import get_current_user_profile
+from views import baby_utils
 
 
 logger = logging.getLogger(__name__)
@@ -158,7 +159,7 @@ def _post_to_n8n(question, user_id):
         logger.warning("Assistant n8n HTTP error %s", exc.code)
         if exc.code == 404:
             return None, (
-                "找不到成長助手的 n8n Webhook（CoLoGrowth）。"
+                "找不到成長助理的 n8n Webhook（CoLoGrowth）。"
                 "請在 n8n 開啟 CoLoGrowth workflow 並確認 Webhook 已啟用。"
             )
         return None, f"n8n Webhook 回應失敗：{exc.code}"
@@ -167,7 +168,7 @@ def _post_to_n8n(question, user_id):
         return None, f"無法連線到 n8n：{exc.reason}"
     except Exception:
         logger.exception("Unexpected error while calling assistant n8n webhook")
-        return None, "呼叫成長評估助手時發生錯誤，請稍後再試。"
+        return None, "呼叫成長評估助理時發生錯誤，請稍後再試。"
 
 
 def assistant(request):
@@ -186,19 +187,35 @@ def assistant(request):
             return JsonResponse({"ok": False, "error": error_message}, status=502)
         return JsonResponse({"ok": True, "answer": answer})
 
+    # 預載協助者記錄（以 pregnancycase_id 為 key），用於逐 case 過濾權限
+    member_perms = {
+        fm.pregnancycase_id: fm
+        for fm in FamilyMember.objects.filter(user=current_user)
+    }
+
     born_babies = BabyInformation.objects.filter(
         Q(pregnancycase__user=current_user)
         | Q(pregnancycase__familymember__user=current_user),
         birthdaytime__isnull=False,
     ).select_related("pregnancycase").distinct().order_by("birthdaytime", "baby_id")
-    assistant_babies = [
-        {
-            "baby": baby,
-            "role": "養育者" if baby.pregnancycase.user_id == current_user.user_id else "協助者",
-        }
-        for baby in born_babies
-    ]
-    return render(request, "base/assistant.html", {
+
+    owners = []
+    helpers = []
+    for baby in born_babies:
+        is_owner = baby.pregnancycase.user_id == current_user.user_id
+        if is_owner:
+            owners.append({"baby": baby, "role": "養育者"})
+        else:
+            member = member_perms.get(baby.pregnancycase_id)
+            if baby_utils.get_permission(member, "assistant", default="view") != "off":
+                helpers.append({"baby": baby, "role": "協助者"})
+
+    # 養育者在前、協助者在後，各自依出生日期（birthdaytime）升序排列
+    owners.sort(key=lambda x: x["baby"].birthdaytime)
+    helpers.sort(key=lambda x: x["baby"].birthdaytime)
+    assistant_babies = owners + helpers
+
+    return render(request, "AI/assistant.html", {
         "current_user": current_user,
         "assistant_babies": assistant_babies,
     })

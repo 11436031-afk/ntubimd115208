@@ -1,6 +1,6 @@
 {% extends 'base/base.html' %}
 {% load static %}
-{% block title %}成長評估助手{% endblock %}
+{% block title %}成長評估助理{% endblock %}
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/assistant.css' %}" />
 {% endblock %}
@@ -9,7 +9,7 @@
     <div class="flex items-center gap-3">
         <a href="/babyinformation/" class="inline-flex items-center gap-2 rounded-full p-2 hover:bg-surface-container-low transition-colors active:scale-95 duration-200" aria-label="返回">
             <span class="material-symbols-outlined text-primary text-[28px]" style="font-variation-settings: 'FILL' 1, 'wght' 700, 'GRAD' 0, 'opsz' 24;">arrow_back</span>
-            <span class="font-extrabold text-2xl text-primary tracking-tight">嬰幼兒成長評估助手</span>
+            <span class="font-extrabold text-2xl text-primary tracking-tight">嬰幼兒成長評估助理</span>
         </a>
     </div>
 </header>
@@ -229,7 +229,7 @@
                         credentials: 'same-origin',
                     });
                     const data = await res.json();
-                    if (!res.ok || !data.ok) throw new Error(data.error || '助手暫時無法回覆。');
+                    if (!res.ok || !data.ok) throw new Error(data.error || '助理暫時無法回覆。');
                     appendMessage(data.answer, 'bot');
                 } catch (err) {
                     appendMessage(err.message, 'error');

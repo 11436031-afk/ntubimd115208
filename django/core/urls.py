@@ -247,11 +247,6 @@ urlpatterns = [
         social_sharing_card.upload_sharing_card,
         name='upload_sharing_card'
     ),
-    path(
-        'share_card/<str:filename>/',
-        social_sharing_card.share_card_detail_view,
-        name='share_card_detail'
-    ),
 
 
 
