@@ -12,16 +12,16 @@ def social_sharing_card_view(request):
 
     # 取得當前活躍寶寶
     baby = baby_utils.get_active_baby(request)
-    
+
     # 預設值
     baby_name = "寶寶"
     baby_age_text = "3個月"
     baby_birthday = None
-    
+
     if baby:
         baby_name = baby.name
         baby_birthday = baby.birthdaytime.date() if baby.birthdaytime else None
-        
+
         # 計算年齡 / 月齡
         if baby_birthday:
             today = timezone.now().date()
@@ -66,7 +66,7 @@ def social_sharing_card_view(request):
                 'date': r.date.strftime('%Y-%m-%d'),
                 'description': r.record or ''
             })
-            
+
         # 2. 產檢紀錄相片 (超音波照)
         prenatal_records = Prenatalrecord.objects.filter(pregnancyrecord__user=user).exclude(photo__isnull=True).exclude(photo='').select_related('pregnancyrecord').order_by('-pregnancyrecord__check_date')
         for pr in prenatal_records:
@@ -85,7 +85,7 @@ def social_sharing_card_view(request):
         'record_photos': record_photos,
         'current_date': timezone.now().date().strftime('%Y-%m-%d'),
     }
-    return render(request, 'user/social_sharing_card.html', context)
+    return render(request, 'baby/social_sharing_card.html', context)
 
 
 import os
@@ -104,30 +104,19 @@ def upload_sharing_card(request):
             try:
                 header, data = image_data.split(';base64,')
                 file_bytes = base64.b64decode(data)
-                
+
                 filename = f"card_{uuid.uuid4().hex[:10]}.png"
                 media_dir = os.path.join(settings.MEDIA_ROOT, 'sharing_cards')
                 os.makedirs(media_dir, exist_ok=True)
-                
+
                 filepath = os.path.join(media_dir, filename)
                 with open(filepath, 'wb') as f:
                     f.write(file_bytes)
-                    
+
                 image_url = request.build_absolute_uri(f"{settings.MEDIA_URL}sharing_cards/{filename}")
                 share_page_url = request.build_absolute_uri(f"/share_card/{filename}/")
                 return JsonResponse({'status': 'success', 'image_url': image_url, 'share_page_url': share_page_url})
             except Exception as e:
                 return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
-                
+
     return JsonResponse({'status': 'error', 'message': '無效的請求'}, status=400)
-
-
-def share_card_detail_view(request, filename):
-    """專用里程碑分享頁面，包含 OpenGraph 標籤讓 LINE 抓取圖片呈現預覽"""
-    image_url = request.build_absolute_uri(f"{settings.MEDIA_URL}sharing_cards/{filename}")
-    context = {
-        'image_url': image_url,
-        'filename': filename,
-    }
-    return render(request, 'user/share_card_detail.html', context)
-

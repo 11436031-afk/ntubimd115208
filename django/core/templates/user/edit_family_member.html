@@ -13,11 +13,13 @@
 {% endblock %}
 {% block content %}
 <div class="bg-surface text-on-surface">
-    <header class="bg-surface/70 backdrop-blur-md px-4 py-4 w-full md:px-8 lg:px-16 xl:px-32 2xl:px-64">
-        <button onclick="window.history.back()" class="inline-flex items-center gap-2 rounded-full p-2 hover:bg-surface-container-low transition-colors active:scale-95 duration-200" aria-label="返回">
-            <span class="material-symbols-outlined text-primary text-[28px]" style="font-variation-settings:'FILL' 1,'wght' 700,'GRAD' 0,'opsz' 24;">arrow_back</span>
-            <span class="text-lg font-bold text-primary">協助者管理</span>
-        </button>
+    <header id="edit-profile-header" class="sticky top-0 z-50 bg-[#f7f6f3]/70 backdrop-blur-md flex justify-between items-center px-6 py-4 w-full transition-all duration-500 md:px-8 lg:px-16 xl:px-32 2xl:px-64">
+        <div class="flex items-center gap-3">
+            <a href="/userprofile/" class="inline-flex items-center gap-2 rounded-full p-2 hover:bg-surface-container-low transition-colors active:scale-95 duration-200" aria-label="返回">
+                <span class="material-symbols-outlined text-primary text-[28px]" style="font-variation-settings: 'FILL' 1, 'wght' 700, 'GRAD' 0, 'opsz' 24;">arrow_back</span>
+                <span class="tfont-headline font-extrabold text-2xl text-primary tracking-tight">協助者管理</span>
+            </a>
+        </div>
     </header>
 
     <main class="pt-2 pb-32 px-4 mx-auto max-w-md md:max-w-none w-full md:px-8 lg:px-16 xl:px-32 2xl:px-64 space-y-6">
@@ -117,6 +119,7 @@
                             <input type="hidden" id="perm_baby_records_{{ mid }}" name="perm_baby_records" value="{{ member.permissions.baby_records|default:'view' }}">
                             <input type="hidden" id="perm_mom_records_{{ mid }}" name="perm_mom_records" value="{{ member.permissions.mom_records|default:'view' }}">
                             <input type="hidden" id="perm_care_records_{{ mid }}" name="perm_care_records" value="{{ member.permissions.care_records|default:'view' }}">
+                            <input type="hidden" id="perm_assistant_{{ mid }}" name="perm_assistant" value="{{ member.permissions.assistant|default:'view' }}">
 
                             <p class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">功能權限</p>
 
@@ -156,6 +159,19 @@
                                 <div class="flex bg-surface-container-low rounded-xl p-0.5 shrink-0" data-feature="care_records" data-member="{{ mid }}">
                                     <button type="button" class="seg-btn px-4 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer {% if cur != 'edit' %}active{% endif %}" data-value="view">檢視</button>
                                     <button type="button" class="seg-btn px-4 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer {% if cur == 'edit' %}active{% endif %}" data-value="edit">修改</button>
+                                </div>
+                            </div>
+                            {% endwith %}
+
+                            <!-- 成長評估助理：關閉/開啟 -->
+                            {% with cur=member.permissions.assistant|default:"view" %}
+                            <div class="flex items-center justify-between gap-2">
+                                <span class="text-sm font-medium text-on-surface flex items-center gap-1.5 shrink-0">
+                                    <span class="material-symbols-outlined text-on-surface-variant text-[17px]">smart_toy</span>成長評估助理
+                                </span>
+                                <div class="flex bg-surface-container-low rounded-xl p-0.5 shrink-0" data-feature="assistant" data-member="{{ mid }}">
+                                    <button type="button" class="seg-btn px-4 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer {% if cur == 'off' %}active{% endif %}" data-value="off">關閉</button>
+                                    <button type="button" class="seg-btn px-4 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer {% if cur != 'off' %}active{% endif %}" data-value="view">開啟</button>
                                 </div>
                             </div>
                             {% endwith %}
