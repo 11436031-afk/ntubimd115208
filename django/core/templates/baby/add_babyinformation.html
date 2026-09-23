@@ -20,6 +20,13 @@
         <form method="post" action="{% url 'add_baby_information' %}" class="space-y-6">
             {% csrf_token %}
 
+            {% if error %}
+            <div class="flex items-center gap-3 bg-red-50 border border-red-200 text-red-700 px-5 py-4 rounded-2xl text-sm font-bold" role="alert">
+                <span class="material-symbols-outlined text-base" style="font-variation-settings:'FILL' 1">error</span>
+                {{ error }}
+            </div>
+            {% endif %}
+
             <section class="bg-surface-container-lowest rounded-3xl p-6 shadow-sm border border-surface-container-high">
                 <div class="flex items-center gap-2 mb-6">
                     <div class="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
@@ -34,6 +41,7 @@
                         <div class="relative">
                             <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant/50">face</span>
                             <input type="text" name="baby_name" required placeholder="例如：小寶、球球"
+                                   value="{{ form_data.baby_name|default:'' }}"
                                    class="w-full bg-surface-container-low border-none rounded-xl pl-12 pr-4 py-3.5 text-on-surface focus:ring-2 focus:ring-primary-container transition-all text-sm outline-none font-medium placeholder:text-on-surface-variant/40" />
                         </div>
                     </div>
@@ -52,6 +60,8 @@
                         <div class="relative">
                             <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant/50">event</span>
                             <input type="datetime-local" name="birthdaytime"
+                                    value="{{ form_data.birthdaytime|default:'' }}"
+                                    max="{% now 'Y-m-d' %}T23:59"
                                     class="w-full bg-surface-container-low border-none rounded-xl pl-11 pr-3 py-3.5 text-on-surface focus:ring-2 focus:ring-primary-container transition-all text-sm outline-none font-medium" />
                         </div>
                     </div>
@@ -70,7 +80,7 @@
                     <div class="space-y-2">
                         <label class="text-xs font-bold text-on-surface-variant uppercase tracking-wider pl-1">出生體重</label>
                         <div class="relative">
-                            <input type="number" name="birth_weight" step="0.01" min="0.3" max="6.0" placeholder="如 3.2" class="w-full bg-surface-container-low border-none rounded-xl px-4 py-3.5 text-on-surface focus:ring-2 focus:ring-secondary-container transition-all text-sm outline-none font-medium" />
+                            <input type="number" name="birth_weight" step="0.01" min="0.3" max="6.0" placeholder="如 3.2" value="{{ form_data.birth_weight|default:'' }}" class="w-full bg-surface-container-low border-none rounded-xl px-4 py-3.5 text-on-surface focus:ring-2 focus:ring-secondary-container transition-all text-sm outline-none font-medium" />
                             <span class="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium text-on-surface-variant">kg</span>
                         </div>
                     </div>
@@ -78,7 +88,7 @@
                     <div class="space-y-2">
                         <label class="text-xs font-bold text-on-surface-variant uppercase tracking-wider pl-1">出生身長</label>
                         <div class="relative">
-                            <input type="number" name="birth_height" step="0.1" min="25" max="65" placeholder="如 50.5" class="w-full bg-surface-container-low border-none rounded-xl px-4 py-3.5 text-on-surface focus:ring-2 focus:ring-secondary-container transition-all text-sm outline-none font-medium" />
+                            <input type="number" name="birth_height" step="0.1" min="25" max="65" placeholder="如 50.5" value="{{ form_data.birth_height|default:'' }}" class="w-full bg-surface-container-low border-none rounded-xl px-4 py-3.5 text-on-surface focus:ring-2 focus:ring-secondary-container transition-all text-sm outline-none font-medium" />
                             <span class="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium text-on-surface-variant">cm</span>
                         </div>
                     </div>
@@ -86,7 +96,7 @@
                     <div class="space-y-2">
                         <label class="text-xs font-bold text-on-surface-variant uppercase tracking-wider pl-1">出生頭圍</label>
                         <div class="relative">
-                            <input type="number" name="birth_head" step="0.1" min="25" max="45" placeholder="如 34" class="w-full bg-surface-container-low border-none rounded-xl px-4 py-3.5 text-on-surface focus:ring-2 focus:ring-secondary-container transition-all text-sm outline-none font-medium" />
+                            <input type="number" name="birth_head" step="0.1" min="25" max="45" placeholder="如 34" value="{{ form_data.birth_head|default:'' }}" class="w-full bg-surface-container-low border-none rounded-xl px-4 py-3.5 text-on-surface focus:ring-2 focus:ring-secondary-container transition-all text-sm outline-none font-medium" />
                             <span class="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium text-on-surface-variant">cm</span>
                         </div>
                     </div>
@@ -94,7 +104,7 @@
                     <div class="space-y-2">
                         <label class="text-xs font-bold text-on-surface-variant uppercase tracking-wider pl-1">出生胸圍</label>
                         <div class="relative">
-                            <input type="number" name="birth_chest" step="0.1" min="20" max="42" placeholder="如 32" class="w-full bg-surface-container-low border-none rounded-xl px-4 py-3.5 text-on-surface focus:ring-2 focus:ring-secondary-container transition-all text-sm outline-none font-medium" />
+                            <input type="number" name="birth_chest" step="0.1" min="20" max="42" placeholder="如 32" value="{{ form_data.birth_chest|default:'' }}" class="w-full bg-surface-container-low border-none rounded-xl px-4 py-3.5 text-on-surface focus:ring-2 focus:ring-secondary-container transition-all text-sm outline-none font-medium" />
                             <span class="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium text-on-surface-variant">cm</span>
                         </div>
                     </div>
@@ -104,11 +114,11 @@
                     <label class="text-xs font-bold text-on-surface-variant uppercase tracking-wider pl-1">生產方式</label>
                     <div class="relative">
                         <select name="production_method" class="w-full bg-surface-container-low border-none rounded-xl px-4 py-3.5 text-on-surface focus:ring-2 focus:ring-secondary-container transition-all text-sm outline-none font-medium appearance-none">
-                            <option value="" disabled selected>請選擇生產方式</option>
-                            <option value="自然產">自然產</option>
-                            <option value="剖腹產">剖腹產</option>
-                            <option value="無痛分娩">無痛分娩自然產</option>
-                            <option value="水中生產">水中生產</option>
+                            <option value="" disabled {% if not form_data.production_method %}selected{% endif %}>請選擇生產方式</option>
+                            <option value="自然產"   {% if form_data.production_method == '自然產'   %}selected{% endif %}>自然產</option>
+                            <option value="剖腹產"   {% if form_data.production_method == '剖腹產'   %}selected{% endif %}>剖腹產</option>
+                            <option value="無痛分娩" {% if form_data.production_method == '無痛分娩' %}selected{% endif %}>無痛分娩自然產</option>
+                            <option value="水中生產" {% if form_data.production_method == '水中生產' %}selected{% endif %}>水中生產</option>
                         </select>
                         <span class="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none">expand_more</span>
                     </div>

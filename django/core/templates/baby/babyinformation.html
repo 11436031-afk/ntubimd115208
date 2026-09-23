@@ -12,6 +12,14 @@
             <h1 class="text-4xl font-extrabold text-primary tracking-tight">嬰幼兒紀錄</h1>
             <p class="text-on-surface-variant font-medium">嬰幼兒從出生到三歲的成長點滴</p>
         </section>
+
+        {% if record_merged %}
+        <!-- 同一天已有紀錄時，新增會改為更新既有紀錄，這裡明確告知使用者 -->
+        <div class="flex items-center gap-3 bg-primary/10 border border-primary/20 text-primary px-5 py-4 rounded-2xl text-sm font-bold" role="status">
+            <span class="material-symbols-outlined text-base" style="font-variation-settings:'FILL' 1">info</span>
+            這一天原本就有成長紀錄，系統已將您填寫的內容更新至該筆紀錄，而不是新增第二筆。
+        </div>
+        {% endif %}
         <!-- Component 1: Compact Child Info Summary -->
         <section class="bg-surface-container-lowest rounded-xl p-6 shadow-sm relative overflow-hidden">
             <div class="mb-6">
@@ -122,11 +130,25 @@
                     <div class="flex justify-between items-center px-2 mb-4 mt-8 lg:mt-0">
                         <h4 class="text-on-surface-variant text-sm font-bold uppercase tracking-wider">今日紀錄</h4>
                         {% if has_day_data and can_edit_baby %}
-                        <button onclick="window.location.href='{% url 'edit_baby_record' selected_day_record.babyrecord_id %}'"
-                            class="flex items-center gap-1.5 px-5 py-2 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors cursor-pointer active:scale-95">
-                            <span class="material-symbols-outlined text-[18px]">edit</span>
-                            <span class="text-sm font-bold">修改</span>
-                        </button>
+                        <div class="flex items-center gap-2">
+                            <button onclick="window.location.href='{% url 'edit_baby_record' selected_day_record.babyrecord_id %}'"
+                                class="flex items-center gap-1.5 px-5 py-2 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors cursor-pointer active:scale-95">
+                                <span class="material-symbols-outlined text-[18px]">edit</span>
+                                <span class="text-sm font-bold">修改</span>
+                            </button>
+                            <!-- 刪除：POST + CSRF，確認文字寫在 data-confirm（純靜態文字，不內插任何使用者資料） -->
+                            <form method="post"
+                                  action="{% url 'delete_baby_record' selected_day_record.babyrecord_id %}"
+                                  class="js-confirm-form inline"
+                                  data-confirm="確定要刪除這一天的成長紀錄嗎？刪除後無法復原。">
+                                {% csrf_token %}
+                                <button type="submit"
+                                    class="flex items-center gap-1.5 px-5 py-2 rounded-full bg-red-50 text-red-600 hover:bg-red-100 transition-colors cursor-pointer active:scale-95">
+                                    <span class="material-symbols-outlined text-[18px]">delete</span>
+                                    <span class="text-sm font-bold">刪除</span>
+                                </button>
+                            </form>
+                        </div>
                         {% endif %}
                     </div>
 
@@ -316,13 +338,13 @@
         </div>
     </div>
 
-    <!-- ── 浮動「詢問 AI 助理」圓形按鈕 ── -->
+    <!-- ── 浮動「詢問 AI 助手」圓形按鈕 ── -->
     <a
         href="{% url 'assistant' %}"
         id="assistant-fab"
-        aria-label="詢問 AI 助理"
+        aria-label="詢問 AI 助手"
     >
-        <span class="assistant-fab-tooltip">詢問成長評估助理</span>
+        <span class="assistant-fab-tooltip">詢問成長評估助手</span>
         <span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1,'wght' 700; font-size:2rem; line-height:1;">
             smart_toy
         </span>
@@ -414,23 +436,24 @@
         }
     </style>
 
-{% endblock %}
+    <!-- Future-date Toast：原本寫在 {% templatetag openblock %} endblock {% templatetag closeblock %} 之外會被 Django 直接丟棄，
+         導致 showFutureDateToast() 永遠找不到元素，這裡移進 content block 內 -->
+    <div id="future-date-toast"
+         role="alert"
+         aria-live="assertive"
+         class="fixed bottom-24 left-1/2 -translate-x-1/2 z-[200]
+                flex items-center gap-3
+                bg-error text-on-error
+                px-5 py-3 rounded-2xl shadow-xl
+                text-sm font-bold
+                opacity-0 pointer-events-none
+                transition-all duration-300 scale-90
+                whitespace-nowrap">
+        <span class="material-symbols-outlined text-base" style="font-variation-settings:'FILL' 1">event_busy</span>
+        無法新增未來日期的紀錄
+    </div>
 
-<!-- Future-date Toast -->
-<div id="future-date-toast"
-     role="alert"
-     aria-live="assertive"
-     class="fixed bottom-24 left-1/2 -translate-x-1/2 z-[200]
-            flex items-center gap-3
-            bg-error text-on-error
-            px-5 py-3 rounded-2xl shadow-xl
-            text-sm font-bold
-            opacity-0 pointer-events-none
-            transition-all duration-300 scale-90
-            whitespace-nowrap">
-    <span class="material-symbols-outlined text-base" style="font-variation-settings:'FILL' 1">event_busy</span>
-    無法新增未來日期的紀錄
-</div>
+{% endblock %}
 
 {% block extra_js %}
 <script>
@@ -458,6 +481,22 @@
         window.location.href = url;
     }
     // ─────────────────────────────────────────────────────────
+
+    // Confirm before destructive POST forms. The prompt text comes from the
+    // element's data-confirm attribute, so no user data is inlined into JS.
+    document.addEventListener('submit', (event) => {
+        const form = event.target.closest('.js-confirm-form');
+        if (!form) return;
+        const message = form.getAttribute('data-confirm') || '';
+        if (message && !window.confirm(message)) {
+            event.preventDefault();
+            return;
+        }
+        const submitBtn = form.querySelector('button[type="submit"]');
+        if (submitBtn) {
+            submitBtn.disabled = true;
+        }
+    });
 
     document.addEventListener('DOMContentLoaded', () => {
         const monthPickerModal = document.getElementById('month-picker-modal');

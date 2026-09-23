@@ -17,10 +17,18 @@
     </header>
 
     <main class="pt-2 pb-32 px-4 max-w-md md:max-w-none mx-auto w-full md:px-8 lg:px-16 xl:px-32 2xl:px-64 space-y-8">
-        <form method="post" action="{% url 'add_baby_record' %}" enctype="multipart/form-data">
+        <!-- data-* 屬性只放純靜態文字，不內插任何使用者資料（屬性內的實體會先被解碼再交給 JS） -->
+        <form method="post" action="{% url 'add_baby_record' %}" enctype="multipart/form-data"
+              id="baby-record-form"
+              data-date-change-confirm="您已經填寫了部分內容，切換日期會重新載入表單並清空尚未儲存的輸入。確定要切換嗎？">
             {% csrf_token %}
             {% if error %}
-            <div class="rounded-3xl bg-red-50 border border-re1d-200 text-red-700 p-4">{{ error }}</div>
+            <div class="rounded-3xl bg-red-50 border border-red-200 text-red-700 p-4">{{ error }}</div>
+            {% endif %}
+            {% if has_record_on_date %}
+            <div class="rounded-3xl bg-primary/10 border border-primary/20 text-primary p-4 text-sm font-bold">
+                這一天已經有一筆成長紀錄，儲存後會<span class="underline">更新既有的那一筆</span>，而不是新增第二筆。
+            </div>
             {% endif %}
 
             <div id="photo-card-wrapper" class="relative bg-surface-container-lowest border-2 border-dashed border-primary-container rounded-[2rem] p-8 flex flex-col items-center justify-center gap-3 cursor-pointer hover:bg-primary/5 transition-all aspect-[4/3] md:aspect-video shadow-sm">
@@ -77,7 +85,8 @@
                 <input id="milestones" type="hidden" name="milestones" value="{{ milestones|default:'' }}" />
                 <div class="flex flex-wrap gap-3 milestone-buttons">
                     {% for ms in all_milestones %}
-                    <button type="button" class="milestone-item px-6 py-3 bg-surface-container-low text-on-surface-variant rounded-full text-sm font-medium hover:bg-primary/10 transition-all cursor-pointer">
+                    <button type="button" class="milestone-item px-6 py-3 rounded-full text-sm font-medium hover:bg-primary/10 transition-all cursor-pointer
+                        {% if ms.growthrecord in selected_milestone_list %}bg-[#d6beff80] text-[#65518a]{% else %}bg-surface-container-low text-on-surface-variant{% endif %}">
                         {{ ms.growthrecord }}
                     </button>
                     {% empty %}
@@ -92,7 +101,9 @@
             </div>
 
             <div class="pt-8 pb-12">
-                <button type="submit" class="w-full py-4 bg-[#65518a] text-white rounded-full font-headline font-bold text-lg">
+                <!-- 送出後由 JS 立即 disable，避免使用者連點造成重複送出 -->
+                <button type="submit" id="record-submit-btn"
+                        class="w-full py-4 bg-[#65518a] text-white rounded-full font-headline font-bold text-lg disabled:opacity-60 disabled:cursor-not-allowed">
                     完成並儲存紀錄
                 </button>
             </div>
@@ -116,17 +127,53 @@
         const photoCardText = document.getElementById('photo-card-text');
 
 
+        const recordForm = document.getElementById('baby-record-form');
+        const submitBtn  = document.getElementById('record-submit-btn');
+
+        // True when the user already typed/selected something worth keeping.
+        function formHasUserInput() {
+            if (!recordForm) return false;
+            const namedFields = ['height', 'weight', 'headcircumference', 'chestcircumference', 'record', 'milestones'];
+            for (const name of namedFields) {
+                const el = recordForm.querySelector(`[name="${name}"]`);
+                if (el && el.value && el.value.trim()) return true;
+            }
+            const photo = recordForm.querySelector('[name="photo"]');
+            if (photo && photo.files && photo.files.length > 0) return true;
+            return false;
+        }
+
         if (checkDateInput) {
+            let lastDateValue = checkDateInput.value;
             checkDateInput.addEventListener('change', () => {
                 const parts = checkDateInput.value.split('-');
                 if (parts.length === 3) {
                     dateBadgeMonth.textContent = MONTH_ABBR[parseInt(parts[1])];
                     dateBadgeDay.textContent   = parseInt(parts[2]);
                 }
-                // 自動刷新
+                // Changing the date reloads the page (milestone list depends on it),
+                // so ask first when that would throw away what the user typed.
+                const confirmMsg = recordForm ? (recordForm.getAttribute('data-date-change-confirm') || '') : '';
+                if (formHasUserInput() && confirmMsg && !window.confirm(confirmMsg)) {
+                    checkDateInput.value = lastDateValue;
+                    const revert = lastDateValue.split('-');
+                    if (revert.length === 3) {
+                        dateBadgeMonth.textContent = MONTH_ABBR[parseInt(revert[1])];
+                        dateBadgeDay.textContent   = parseInt(revert[2]);
+                    }
+                    return;
+                }
+                lastDateValue = checkDateInput.value;
                 const urlParams = new URLSearchParams(window.location.search);
                 urlParams.set('date', checkDateInput.value);
                 window.location.assign(`${window.location.pathname}?${urlParams.toString()}`);
+            });
+        }
+
+        if (recordForm && submitBtn) {
+            recordForm.addEventListener('submit', () => {
+                // Disable on the next tick so the browser still serializes the form.
+                setTimeout(() => { submitBtn.disabled = true; }, 0);
             });
         }
         if (dateCardWrapper && checkDateInput) {

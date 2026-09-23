@@ -2,6 +2,7 @@ import datetime
 import calendar
 
 from django.shortcuts import render, redirect
+from django.utils import timezone
 
 from core.models import BabyRecord, BabyGrowthMap, BabyStatus, FamilyMember
 from views import baby_utils
@@ -53,8 +54,8 @@ def _get_calendar_data(records, selected_date):
     year, month = selected_date.year, selected_date.month
     first_weekday, days_in_month = calendar.monthrange(year, month)
 
-    # 1. 取得今天日期，用來比對是否為未來日期
-    today = datetime.date.today()
+    # 1. 取得今天日期（Asia/Taipei 當地日），用來比對是否為未來日期
+    today = timezone.localdate()
 
     # 填補當月第一天之前的空白格子
     cells = [{'empty': True} for _ in range((first_weekday + 1) % 7)]
@@ -116,6 +117,13 @@ def _get_baby_milestones_summary(baby):
         .select_related('babygrowthmap', 'babyrecord')
     }
 
+    # 效能：舊版在「里程碑 × 紀錄」的巢狀迴圈內對每一筆紀錄重查一次 DB
+    #（最壞情況數千次查詢）。這裡先一次把每筆紀錄的里程碑撈好放進字典。
+    milestones_by_record = {
+        rec.babyrecord_id: baby_utils.split_note_and_milestones(rec)[0]
+        for rec in baby_records
+    }
+
     completed_list = []
 
     for idx, growth_map in enumerate(growth_maps):
@@ -124,8 +132,7 @@ def _get_baby_milestones_summary(baby):
 
         if not is_completed:
             for rec in baby_records:
-                milestones, _ = baby_utils.split_note_and_milestones(rec)
-                if growth_map.growthrecord in milestones:
+                if growth_map.growthrecord in milestones_by_record.get(rec.babyrecord_id, []):
                     is_completed, matching_record = True, rec
                     break
 
@@ -171,7 +178,7 @@ def baby(request):
         record.milestones, record.note_text = baby_utils.split_note_and_milestones(record)
 
     raw_date = request.GET.get('date', '')
-    today = datetime.date.today()
+    today = timezone.localdate()
     try:
         selected_date = (
             datetime.date.fromisoformat(raw_date)
@@ -256,7 +263,6 @@ def baby(request):
             'birth_weight': active_baby.baby_weight or '-',
             'birth_head': active_baby.babyheadcircumference or '-',
             'birth_chest': active_baby.chestcircumference or '-',
-            'photo_url': None,
         }
         baby_form = {
             'baby_name': active_baby.name or '',
@@ -282,7 +288,6 @@ def baby(request):
                 'birth_height', 'birth_weight', 'birth_head', 'birth_chest',
             ]
         }
-        summary['photo_url'] = None
         baby_form = {
             k: '' for k in [
                 'baby_name', 'birthdaytime_value', 'birth_week', 'birth_weight',
@@ -290,11 +295,6 @@ def baby(request):
                 'join_code',
             ]
         }
-
-    for r in records:
-        if r.photo:
-            summary['photo_url'] = r.photo
-            break
 
     is_overdue = False
     if active_baby and not active_baby.birthdaytime and active_baby.pregnancycase:
@@ -305,7 +305,6 @@ def baby(request):
         'baby': active_baby,
         'baby_is_born': bool(active_baby and active_baby.birthdaytime),
         'records': records,
-        'chart_records': filled_records,
         'baby_summary': summary,
         'baby_form': baby_form,
         'selected_date': selected_date,
@@ -313,6 +312,8 @@ def baby(request):
         'has_day_data': bool(selected_day_record),
         'milestones_summary': _get_baby_milestones_summary(active_baby),
         'can_edit_baby': can_edit_baby,
+        # 新增紀錄時若當天已有紀錄會改為更新既有紀錄，導回本頁後提示使用者
+        'record_merged': request.GET.get('record_merged') == '1',
     }
     context.update(_get_calendar_data(records, selected_date))
 

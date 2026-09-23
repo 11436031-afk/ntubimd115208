@@ -217,6 +217,13 @@ urlpatterns = [
         name='qa_conversation'
     ),
 
+    # 刪除 AI 問答對話（只接受 POST）
+    path(
+        'qa/delete/',
+        qa.qa_delete_conversation,
+        name='qa_delete_conversation'
+    ),
+
     path(
         'assistant/',
         assistant.assistant,
@@ -246,6 +253,11 @@ urlpatterns = [
         'api/upload_sharing_card/',
         social_sharing_card.upload_sharing_card,
         name='upload_sharing_card'
+    ),
+    path(
+        'share_card/<str:filename>/',
+        social_sharing_card.share_card_detail_view,
+        name='share_card_detail'
     ),
 
 
@@ -286,6 +298,37 @@ urlpatterns = [
         'edit_helper_permissions/',
         edit_family_member.edit_helper_permissions,
         name='edit_helper_permissions'
+    ),
+
+    # 家庭成員的各項異動（一律 POST + CSRF，處理完 redirect 回原頁）
+    path(
+        'family/permissions/save/',
+        edit_family_member.save_permissions,
+        name='save_family_permissions'
+    ),
+
+    path(
+        'family/request/handle/',
+        edit_family_member.handle_join_request,
+        name='handle_join_request'
+    ),
+
+    path(
+        'family/request/cancel/',
+        edit_family_member.cancel_join_request,
+        name='cancel_join_request'
+    ),
+
+    path(
+        'family/member/remove/',
+        edit_family_member.remove_family_member,
+        name='remove_family_member'
+    ),
+
+    path(
+        'family/leave/',
+        edit_family_member.leave_family,
+        name='leave_family'
     ),
 
     path(

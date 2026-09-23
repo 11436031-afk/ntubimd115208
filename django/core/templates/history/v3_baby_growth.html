@@ -69,6 +69,18 @@
             <span class="text-[11px] font-bold text-[#65518a] bg-[#EDE5F5] px-3 py-1 rounded-full border border-[#E8E0EF]">歷史回顧</span>
         </div>
 
+        {% if permission_notices %}
+        <!-- 權限說明：協助者沒有被開放的項目已在後端過濾掉，這裡說明原因 -->
+        <div class="space-y-2">
+            {% for notice in permission_notices %}
+            <p class="flex items-start gap-2 text-xs font-bold text-[#65518a] bg-[#EDE5F5] border border-[#E8E0EF] px-4 py-3 rounded-2xl" role="status">
+                <span class="material-symbols-outlined text-[16px] mt-px">lock</span>
+                <span>{{ notice }}</span>
+            </p>
+            {% endfor %}
+        </div>
+        {% endif %}
+
         <div class="grid grid-cols-3 bg-[#EDE5F5]/80 p-1.5 rounded-full border border-[#E8E0EF] shadow-2xs backdrop-blur-md">
             <a href="{% url 'history_review_v3' %}" class="py-2.5 px-3 rounded-full text-xs sm:text-sm font-bold text-center transition-all duration-300 text-[#4A4052] hover:text-[#65518a]">
                 階段總結
@@ -91,137 +103,94 @@
             <p class="text-[#5b5c5a] font-medium text-base sm:text-lg leading-relaxed px-4 font-['Be_Vietnam_Pro']">「一起回顧這段最美好的成長旅程」</p>
         </section>
 
-        <!-- Journey Path Section -->
+        <!-- 4 大統計卡（全部取自真實 ORM 統計） -->
+        <section class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
+            <div class="bg-[#EDE5F5] rounded-3xl p-4 border border-[#d6beff]/50 text-center shadow-2xs">
+                <span class="text-xl mb-0.5 block">📅</span>
+                <span class="block text-2xl font-extrabold text-[#65518a] font-['Plus_Jakarta_Sans']">{{ stats.days_accompanied }}</span>
+                <span class="text-[11px] font-bold text-[#81758A] mt-0.5 block">陪伴天數</span>
+            </div>
+            <div class="bg-[#e0f7fa] rounded-3xl p-4 border border-[#b2e4fb]/60 text-center shadow-2xs">
+                <span class="text-xl mb-0.5 block">📷</span>
+                <span class="block text-2xl font-extrabold text-[#2f6275] font-['Plus_Jakarta_Sans']">{{ stats.total_photos }}</span>
+                <span class="text-[11px] font-bold text-[#81758A] mt-0.5 block">照片總數</span>
+            </div>
+            <div class="bg-[#fce4ec] rounded-3xl p-4 border border-[#f8bbd0]/60 text-center shadow-2xs">
+                <span class="text-xl mb-0.5 block">🌸</span>
+                <span class="block text-2xl font-extrabold text-[#7d4d5f] font-['Plus_Jakarta_Sans']">{{ stats.mom_record_count }}</span>
+                <span class="text-[11px] font-bold text-[#81758A] mt-0.5 block">媽媽紀錄</span>
+            </div>
+            <div class="bg-[#e8f5e9] rounded-3xl p-4 border border-[#a5d6a7]/60 text-center shadow-2xs">
+                <span class="text-xl mb-0.5 block">🍼</span>
+                <span class="block text-2xl font-extrabold text-[#2e7d32] font-['Plus_Jakarta_Sans']">{{ stats.baby_record_count }}</span>
+                <span class="text-[11px] font-bold text-[#81758A] mt-0.5 block">寶寶紀錄</span>
+            </div>
+        </section>
+
+        <!-- Journey Path Section：節點全部來自真實資料（journey_nodes） -->
+        {% if has_journey %}
         <section class="relative z-10 flex flex-col items-center">
-            <!-- SVG Journey Line -->
-            <div class="absolute top-0 w-32 h-[1200px] pointer-events-none path-container opacity-50">
-                <svg fill="none" height="100%" preserveaspectratio="none" viewbox="0 0 120 1200" width="100%">
+            <!-- SVG Journey Line（純裝飾） -->
+            <div class="absolute top-0 w-32 h-full pointer-events-none path-container opacity-50" aria-hidden="true">
+                <svg fill="none" height="100%" preserveAspectRatio="none" viewBox="0 0 120 1200" width="100%">
                     <path d="M60 0C60 100 10 150 10 250C10 350 110 400 110 500C110 600 10 650 10 750C10 850 110 900 110 1000C110 1100 60 1150 60 1200" stroke="url(#paint0_linear)" stroke-dasharray="12 12" stroke-width="4"></path>
                     <defs>
-                        <lineargradient gradientunits="userSpaceOnUse" id="paint0_linear" x1="60" x2="60" y1="0" y2="1200">
+                        <linearGradient gradientUnits="userSpaceOnUse" id="paint0_linear" x1="60" x2="60" y1="0" y2="1200">
                             <stop stop-color="#65518a"></stop>
                             <stop offset="0.5" stop-color="#b2e4fb"></stop>
                             <stop offset="1" stop-color="#adadab"></stop>
-                        </lineargradient>
+                        </linearGradient>
                     </defs>
                 </svg>
             </div>
 
             <!-- Milestone Nodes -->
             <div class="space-y-16 w-full relative">
-                <!-- 1. ❤️ 第一次聽見心跳 -->
-                <div class="milestone-group flex items-center justify-start cursor-pointer" onclick="this.classList.toggle('is-active')">
-                    <div class="flex flex-col items-center ml-[2%] md:ml-[5%]">
+                {% for node in journey_nodes %}
+                <div class="milestone-group flex items-center {% if forloop.counter|divisibleby:2 %}justify-end{% else %}justify-start{% endif %} cursor-pointer" onclick="this.classList.toggle('is-active')">
+                    <div class="flex flex-col items-center {% if forloop.counter|divisibleby:2 %}mr-[2%] md:mr-[5%]{% else %}ml-[2%] md:ml-[5%]{% endif %}">
                         <!-- 圓圈節點 -->
                         <div class="milestone-circle w-20 h-20 rounded-full milestone-active milestone-glow flex items-center justify-center text-3xl shadow-lg border-4 border-white">
-                            ❤️
+                            {{ node.icon }}
                         </div>
 
                         <!-- 圖案下方大標題 -->
                         <div class="node-title mt-2.5 px-3.5 py-1 bg-white/95 rounded-full border border-[#d6beff]/60 shadow-2xs text-center">
-                            <span class="text-xs sm:text-sm font-extrabold text-[#362459] group-hover:text-[#65518a] font-['Plus_Jakarta_Sans'] whitespace-nowrap">
-                                第一次聽見心跳
+                            <span class="text-xs sm:text-sm font-extrabold text-[#362459] font-['Plus_Jakarta_Sans'] whitespace-nowrap">
+                                {{ node.title }}
                             </span>
                         </div>
 
                         <!-- 動態展開詳細資料卡片 (Detail Card) -->
                         <div class="detail-card mt-3 bg-surface-container-lowest p-5 rounded-3xl shadow-xl border border-[#c8b1f0]/40 max-w-[240px] text-center backdrop-blur-md">
-                            <span class="inline-block px-2.5 py-0.5 text-[10px] font-extrabold text-pink-700 bg-pink-100 rounded-full border border-pink-300 mb-1.5">感動時刻</span>
-                            <h4 class="font-['Plus_Jakarta_Sans'] font-extrabold text-[#362459] text-base mb-1">第一次聽見心跳</h4>
-                            <p class="text-xs text-[#65518a] font-bold mb-2">2023.08.15</p>
-                            <p class="text-xs text-[#5b5c5a] font-medium leading-relaxed">在診所透過超音波第一次聽到強而有力的心跳聲，那一刻無比感動！</p>
-                        </div>
-                    </div>
-                    <div class="hidden md:block ml-8 floating-decoration opacity-80">
-                        <span class="material-symbols-outlined text-[#7d4d5f] text-4xl">favorite</span>
-                    </div>
-                </div>
-
-                <!-- 2. 🩺 第一次產檢 -->
-                <div class="milestone-group flex items-center justify-end cursor-pointer" onclick="this.classList.toggle('is-active')">
-                    <div class="mr-8 hidden md:block floating-decoration opacity-80" style="animation-delay: 1s;">
-                        <span class="material-symbols-outlined text-[#2f6275] text-4xl">medical_services</span>
-                    </div>
-                    <div class="flex flex-col items-center mr-[2%] md:mr-[5%]">
-                        <!-- 圓圈節點 -->
-                        <div class="milestone-circle w-20 h-20 rounded-full milestone-active milestone-glow flex items-center justify-center text-3xl shadow-lg border-4 border-white">
-                            🩺
-                        </div>
-
-                        <!-- 圖案下方大標題 -->
-                        <div class="node-title mt-2.5 px-3.5 py-1 bg-white/95 rounded-full border border-[#d6beff]/60 shadow-2xs text-center">
-                            <span class="text-xs sm:text-sm font-extrabold text-[#362459] group-hover:text-[#65518a] font-['Plus_Jakarta_Sans'] whitespace-nowrap">
-                                第一次產檢
-                            </span>
-                        </div>
-
-                        <!-- 動態展開詳細資料卡片 (Detail Card) -->
-                        <div class="detail-card mt-3 bg-surface-container-lowest p-5 rounded-3xl shadow-xl border border-[#c8b1f0]/40 max-w-[240px] text-center backdrop-blur-md">
-                            <span class="inline-block px-2.5 py-0.5 text-[10px] font-extrabold text-purple-700 bg-purple-100 rounded-full border border-purple-300 mb-1.5">健康檢查</span>
-                            <h4 class="font-['Plus_Jakarta_Sans'] font-extrabold text-[#362459] text-base mb-1">第一次產檢</h4>
-                            <p class="text-xs text-[#65518a] font-bold mb-2">2023.09.20</p>
-                            <p class="text-xs text-[#5b5c5a] font-medium leading-relaxed">順利領取媽媽手冊，醫生確認胚胎發育良好，體重與血壓指標均正常。</p>
+                            <span class="inline-block px-2.5 py-0.5 text-[10px] font-extrabold rounded-full border mb-1.5 {{ node.badge_class }}">{{ node.badge }}</span>
+                            <h4 class="font-['Plus_Jakarta_Sans'] font-extrabold text-[#362459] text-base mb-1">{{ node.title }}</h4>
+                            {% if node.date_str %}
+                            <p class="text-xs text-[#65518a] font-bold mb-2">{{ node.date_str }}</p>
+                            {% endif %}
+                            {% if node.note %}
+                            <p class="text-xs text-[#5b5c5a] font-medium leading-relaxed">{{ node.note }}</p>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
-
-                <!-- 3. 🦶 第一次胎動 -->
-                <div class="milestone-group flex items-center justify-start cursor-pointer" onclick="this.classList.toggle('is-active')">
-                    <div class="flex flex-col items-center ml-[2%] md:ml-[5%]">
-                        <!-- 圓圈節點 -->
-                        <div class="milestone-circle w-20 h-20 rounded-full milestone-active milestone-glow flex items-center justify-center text-3xl shadow-lg border-4 border-white">
-                            🦶
-                        </div>
-
-                        <!-- 圖案下方大標題 -->
-                        <div class="node-title mt-2.5 px-3.5 py-1 bg-white/95 rounded-full border border-[#d6beff]/60 shadow-2xs text-center">
-                            <span class="text-xs sm:text-sm font-extrabold text-[#362459] group-hover:text-[#65518a] font-['Plus_Jakarta_Sans'] whitespace-nowrap">
-                                第一次胎動
-                            </span>
-                        </div>
-
-                        <!-- 動態展開詳細資料卡片 (Detail Card) -->
-                        <div class="detail-card mt-3 bg-surface-container-lowest p-5 rounded-3xl shadow-xl border border-[#c8b1f0]/40 max-w-[240px] text-center backdrop-blur-md">
-                            <span class="inline-block px-2.5 py-0.5 text-[10px] font-extrabold text-amber-700 bg-amber-100 rounded-full border border-amber-300 mb-1.5">神奇體驗</span>
-                            <h4 class="font-['Plus_Jakarta_Sans'] font-extrabold text-[#362459] text-base mb-1">第一次胎動</h4>
-                            <p class="text-xs text-[#65518a] font-bold mb-2">2023.11.05</p>
-                            <p class="text-xs text-[#5b5c5a] font-medium leading-relaxed">躺在床上時感覺肚子被輕輕推了一下，小寶貝開始活潑地和爸爸媽媽打招呼！</p>
-                        </div>
-                    </div>
-                    <div class="hidden md:block ml-8 floating-decoration opacity-80" style="animation-delay: 2s;">
-                        <span class="material-symbols-outlined text-[#65518a] text-4xl">child_care</span>
-                    </div>
-                </div>
-
-                <!-- 4. 👶 寶寶誕生啦 -->
-                <div class="milestone-group flex items-center justify-end cursor-pointer" onclick="this.classList.toggle('is-active')">
-                    <div class="mr-8 hidden md:block floating-decoration opacity-80" style="animation-delay: 3s;">
-                        <span class="material-symbols-outlined text-[#7d4d5f] text-4xl">cake</span>
-                    </div>
-                    <div class="flex flex-col items-center mr-[2%] md:mr-[5%]">
-                        <!-- 圓圈節點 -->
-                        <div class="milestone-circle w-20 h-20 rounded-full milestone-active milestone-glow flex items-center justify-center text-3xl shadow-lg border-4 border-white">
-                            👶
-                        </div>
-
-                        <!-- 圖案下方大標題 -->
-                        <div class="node-title mt-2.5 px-3.5 py-1 bg-white/95 rounded-full border border-[#d6beff]/60 shadow-2xs text-center">
-                            <span class="text-xs sm:text-sm font-extrabold text-[#362459] group-hover:text-[#65518a] font-['Plus_Jakarta_Sans'] whitespace-nowrap">
-                                寶寶誕生啦
-                            </span>
-                        </div>
-
-                        <!-- 動態展開詳細資料卡片 (Detail Card) -->
-                        <div class="detail-card mt-3 bg-surface-container-lowest p-5 rounded-3xl shadow-xl border border-[#c8b1f0]/40 max-w-[240px] text-center backdrop-blur-md">
-                            <span class="inline-block px-2.5 py-0.5 text-[10px] font-extrabold text-emerald-700 bg-emerald-100 rounded-full border border-emerald-300 mb-1.5">圓滿誕生</span>
-                            <h4 class="font-['Plus_Jakarta_Sans'] font-extrabold text-[#362459] text-base mb-1">寶寶誕生啦</h4>
-                            <p class="text-xs text-[#65518a] font-bold mb-2">2024.03.28</p>
-                            <p class="text-xs text-[#5b5c5a] font-medium leading-relaxed">平安順產！迎來健康可愛的小寶貝，正式開啟新手父母充滿愛與溫馨的旅程。</p>
-                        </div>
-                    </div>
-                </div>
+                {% endfor %}
             </div>
         </section>
+        {% else %}
+        <section class="py-12 flex flex-col items-center justify-center text-center gap-2 bg-white/70 rounded-3xl border border-dashed border-[#E8E0EF]">
+            <span class="material-symbols-outlined text-[#65518a] text-3xl">auto_stories</span>
+            <h3 class="text-sm font-extrabold text-[#362459]">紀念冊還是空的</h3>
+            <p class="text-xs text-[#81758A] max-w-xs leading-relaxed">
+                {% if permission_notices %}
+                部分內容因為權限設定而未顯示。
+                {% else %}
+                新增孕期紀錄、填寫寶寶出生資料或勾選成長里程碑後，
+                這裡就會依照真實紀錄自動組出您的成長旅程。
+                {% endif %}
+            </p>
+        </section>
+        {% endif %}
     </main>
 </div>
 {% endblock %}

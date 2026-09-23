@@ -23,6 +23,18 @@
             <span class="text-[11px] font-bold text-[#65518a] bg-[#EDE5F5] px-3 py-1 rounded-full border border-[#E8E0EF]">歷史回顧</span>
         </div>
 
+        {% if permission_notices %}
+        <!-- 權限說明：協助者沒有被開放的項目已在後端過濾掉，這裡說明原因 -->
+        <div class="space-y-2">
+            {% for notice in permission_notices %}
+            <p class="flex items-start gap-2 text-xs font-bold text-[#65518a] bg-[#EDE5F5] border border-[#E8E0EF] px-4 py-3 rounded-2xl" role="status">
+                <span class="material-symbols-outlined text-[16px] mt-px">lock</span>
+                <span>{{ notice }}</span>
+            </p>
+            {% endfor %}
+        </div>
+        {% endif %}
+
         <div class="grid grid-cols-2 bg-[#EDE5F5]/80 p-1.5 rounded-full border border-[#E8E0EF] shadow-2xs backdrop-blur-md">
             <a href="{% url 'history_review_v3' %}" class="py-2.5 px-3 rounded-full text-xs sm:text-sm font-bold text-center transition-all duration-300 text-[#4A4052] hover:text-[#65518a]">
                 歷史回顧

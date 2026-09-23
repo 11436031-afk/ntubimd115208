@@ -1,0 +1,936 @@
+{% extends 'base/base.html' %}
+{% load static %}
+{% block title %}成長里程碑「快速生成圖文分享卡」{% endblock %}
+
+{% block extra_css %}
+<style>
+    .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        vertical-align: middle;
+    }
+    /* Custom style for radio check rings */
+    .color-radio:checked + .color-ring {
+        border-color: #65518a;
+        transform: scale(1.1);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+{# 上傳圖卡的 API 已經改回需要 CSRF 驗證，這裡放一份 token 讓 fetch 帶上 #}
+<form id="csrf-token-holder" class="hidden">{% csrf_token %}</form>
+<div class="bg-background text-on-surface min-h-screen">
+    <!-- Header -->
+    <header class="bg-[#f7f6f3]/70 backdrop-blur-md sticky top-0 z-50 flex justify-between items-center px-6 py-4 w-full border-b border-surface-container-high transition-all duration-500 md:px-8 lg:px-16 xl:px-32 2xl:px-64">
+        <div class="flex items-center gap-3">
+            <a href="{% url 'babyinformation' %}" class="p-2 hover:bg-surface-container-low transition-colors active:scale-95 duration-200 rounded-full cursor-pointer">
+                <span class="material-symbols-outlined text-primary">arrow_back</span>
+            </a>
+            <h1 class="font-headline font-semibold tracking-tight text-lg text-primary">生成精美里程碑分享卡</h1>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 py-8 lg:px-8">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            
+            <!-- Left Side: Config Panel -->
+            <div class="lg:col-span-5 space-y-6 bg-surface-container-lowest p-6 rounded-[2rem] shadow-sm border border-surface-container-low">
+                <div>
+                    <h2 class="text-lg font-bold text-on-surface mb-1 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-primary">edit_note</span>
+                        個性化卡片設定
+                    </h2>
+                    <p class="text-xs text-on-surface-variant font-medium">調整寶寶的資訊、選擇配色與上傳照片</p>
+                </div>
+
+                <!-- 快速帶入已完成里程碑 -->
+                <div class="space-y-2">
+                    <label class="text-xs font-bold text-on-surface-variant tracking-wider uppercase">已達成的成長里程碑</label>
+                    {% if completed_milestones %}
+                    <select id="milestone-selector" class="w-full bg-surface-container-low text-on-surface border border-surface-container-high rounded-xl px-4 py-2.5 text-sm font-semibold outline-none focus:ring-2 focus:ring-primary/20">
+                        <option value="">-- 選擇已完成里程碑以自動生成卡片 --</option>
+                        {% for item in completed_milestones %}
+                        <option value="{{ item.id }}" data-name="{{ item.name }}" data-date="{{ item.date }}" data-photo="{{ item.photo }}" data-record="{{ item.record_text }}">
+                            【{{ item.timecourse }}個月】{{ item.name }} ({{ item.date }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                    {% else %}
+                    <select id="milestone-selector" disabled class="w-full bg-surface-container-low/60 text-on-surface-variant/60 border border-surface-container-high rounded-xl px-4 py-2.5 text-sm font-semibold outline-none cursor-not-allowed">
+                        <option value="">⚠️ 尚無已勾選達成的里程碑，可至成長地圖記錄</option>
+                    </select>
+                    {% endif %}
+                </div>
+
+                <div class="space-y-4">
+                    <!-- 寶寶名稱與月齡 -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="space-y-1.5">
+                            <label class="text-xs font-bold text-on-surface-variant">寶寶暱稱</label>
+                            <input type="text" id="card-baby-name" value="{{ baby_name }}" placeholder="例如：樂樂" 
+                                   class="w-full bg-surface-container-low text-on-surface border border-surface-container-high rounded-xl px-4 py-2.5 text-sm font-semibold outline-none focus:ring-2 focus:ring-primary/20">
+                        </div>
+                        <div class="space-y-1.5">
+                            <label class="text-xs font-bold text-on-surface-variant">寶寶月齡/年齡</label>
+                            <input type="text" id="card-baby-age" value="{{ baby_age_text }}" placeholder="例如：3個月12天" 
+                                   class="w-full bg-surface-container-low text-on-surface border border-surface-container-high rounded-xl px-4 py-2.5 text-sm font-semibold outline-none focus:ring-2 focus:ring-primary/20">
+                        </div>
+                    </div>
+
+                    <!-- 里程碑與日期 -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="space-y-1.5">
+                            <label class="text-xs font-bold text-on-surface-variant">里程碑稱號</label>
+                            <input type="text" id="card-milestone-title" value="第一次會翻身囉！" placeholder="例如：第一次抬頭" 
+                                   class="w-full bg-surface-container-low text-on-surface border border-surface-container-high rounded-xl px-4 py-2.5 text-sm font-semibold outline-none focus:ring-2 focus:ring-primary/20">
+                        </div>
+                        <div class="space-y-1.5">
+                            <label class="text-xs font-bold text-on-surface-variant">達成日期</label>
+                            <input type="date" id="card-date" value="{{ current_date }}" 
+                                   class="w-full bg-surface-container-low text-on-surface border border-surface-container-high rounded-xl px-4 py-2.5 text-sm font-semibold outline-none focus:ring-2 focus:ring-primary/20">
+                        </div>
+                    </div>
+
+                    <!-- 溫馨文案 / 紀錄日記 -->
+                    <div class="space-y-1.5">
+                        <div class="flex justify-between items-center">
+                            <label class="text-xs font-bold text-on-surface-variant">想說的話 / 溫馨筆記</label>
+                            <button type="button" id="btn-today-note" class="text-xs font-bold text-primary hover:underline flex items-center gap-1">
+                                <span class="material-symbols-outlined text-xs">edit_calendar</span>當日成長筆記
+                            </button>
+                        </div>
+                        <textarea id="card-message" rows="3" placeholder="例如：今天寶寶自己翻過去了，全家人都開心地大叫，太神奇的一刻！" 
+                                  class="w-full bg-surface-container-low text-on-surface border border-surface-container-high rounded-xl px-4 py-3 text-sm font-semibold outline-none focus:ring-2 focus:ring-primary/20 resize-none">今天我自己成功翻過去了！爸爸媽媽好開心，手忙腳亂幫我拍了好多照片呢！</textarea>
+                    </div>
+
+                    <!-- 選擇寶寶的相片紀錄 -->
+                    <div class="space-y-1.5">
+                        <div class="flex justify-between items-center">
+                            <label class="text-xs font-bold text-on-surface-variant tracking-wider uppercase">選擇寶寶紀錄/產檢相片</label>
+                            <button type="button" id="btn-reset-photo" class="text-xs font-bold text-primary hover:underline">重設相片</button>
+                        </div>
+                        
+                        {% if record_photos %}
+                        <!-- Photo Album Grid -->
+                        <div class="grid grid-cols-3 gap-2 max-h-[180px] overflow-y-auto pr-1 pb-1">
+                            {% for photo in record_photos %}
+                            <button type="button" class="photo-thumbnail-btn relative aspect-square rounded-xl overflow-hidden border-2 border-surface-container-high hover:border-primary transition-all focus:outline-none group cursor-pointer"
+                                    data-url="{{ photo.url }}" data-label="{{ photo.label }}" data-date="{{ photo.date }}" data-desc="{{ photo.description }}">
+                                <img src="{{ photo.url }}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
+                                <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                    <span class="material-symbols-outlined text-white text-sm">check</span>
+                                </div>
+                                <span class="absolute bottom-0 inset-x-0 bg-black/50 text-white text-[8px] py-0.5 text-center font-medium truncate">{{ photo.date }}</span>
+                            </button>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <!-- Empty album + preset samples -->
+                        <div class="bg-surface-container-low p-4 rounded-2xl border border-surface-container-high text-center">
+                            <span class="material-symbols-outlined text-[28px] text-on-surface-variant/40 block mb-1">no_photography</span>
+                            <p class="text-xs font-bold text-on-surface-variant">紀錄中尚無照片</p>
+                            <p class="text-[10px] text-on-surface-variant/60 mt-0.5 mb-3">您可點選下方範例圖片來測試卡片效果：</p>
+                            
+                            <!-- Preset samples -->
+                            <div class="flex justify-center gap-3">
+                                <button type="button" class="photo-thumbnail-btn relative w-12 h-12 rounded-xl overflow-hidden border-2 border-surface-container-high hover:border-primary transition-all cursor-pointer group"
+                                        data-url="/static/media/prenatalrecord/21.png" data-label="超音波照片" data-date="{{ current_date }}" data-desc="在螢幕上第一次看到你小小的輪廓，那一刻，我們的世界變得完整了。">
+                                    <img src="/static/media/prenatalrecord/21.png" class="w-full h-full object-cover">
+                                    <span class="absolute bottom-0 inset-x-0 bg-black/50 text-white text-[8px] text-center truncate">超音波照</span>
+                                </button>
+                                <button type="button" class="photo-thumbnail-btn relative w-12 h-12 rounded-xl overflow-hidden border-2 border-surface-container-high hover:border-primary transition-all cursor-pointer group"
+                                        data-url="/logo/LOGO.png" data-label="CoLoGrowth" data-date="{{ current_date }}" data-desc="歡迎來到 CoLoGrowth 成長小卡！陪伴寶寶健康快樂地長大。">
+                                    <img src="/logo/LOGO.png" class="w-full h-full object-contain p-1 bg-white">
+                                    <span class="absolute bottom-0 inset-x-0 bg-black/50 text-white text-[8px] text-center truncate">LOGO</span>
+                                </button>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- 馬卡龍配色選擇 -->
+                    <div class="space-y-2">
+                        <label class="text-xs font-bold text-on-surface-variant tracking-wider uppercase">暖色調馬卡龍配色風格</label>
+                        <div class="flex items-center gap-4">
+                            <!-- Sakura Pink -->
+                            <label class="relative flex items-center justify-center cursor-pointer">
+                                <input type="radio" name="card-theme" value="sakura" checked class="hidden color-radio">
+                                <span class="color-ring w-9 h-9 rounded-full border-2 border-transparent flex items-center justify-center transition-all p-0.5">
+                                    <span class="w-full h-full rounded-full bg-[#FFEAEF] border border-pink-200" title="櫻花粉"></span>
+                                </span>
+                            </label>
+                            <!-- Sunny Yellow -->
+                            <label class="relative flex items-center justify-center cursor-pointer">
+                                <input type="radio" name="card-theme" value="sunny" class="hidden color-radio">
+                                <span class="color-ring w-9 h-9 rounded-full border-2 border-transparent flex items-center justify-center transition-all p-0.5">
+                                    <span class="w-full h-full rounded-full bg-[#FFFBEA] border border-amber-200" title="暖陽黃"></span>
+                                </span>
+                            </label>
+                            <!-- Sky Blue -->
+                            <label class="relative flex items-center justify-center cursor-pointer">
+                                <input type="radio" name="card-theme" value="sky" class="hidden color-radio">
+                                <span class="color-ring w-9 h-9 rounded-full border-2 border-transparent flex items-center justify-center transition-all p-0.5">
+                                    <span class="w-full h-full rounded-full bg-[#EAF5FF] border border-blue-200" title="晴空藍"></span>
+                                </span>
+                            </label>
+                            <!-- Lavender Purple -->
+                            <label class="relative flex items-center justify-center cursor-pointer">
+                                <input type="radio" name="card-theme" value="lavender" class="hidden color-radio">
+                                <span class="color-ring w-9 h-9 rounded-full border-2 border-transparent flex items-center justify-center transition-all p-0.5">
+                                    <span class="w-full h-full rounded-full bg-[#F3EAFE] border border-purple-200" title="薰衣草紫"></span>
+                                </span>
+                            </label>
+                            <!-- Caramel Milk Tea -->
+                            <label class="relative flex items-center justify-center cursor-pointer">
+                                <input type="radio" name="card-theme" value="caramel" class="hidden color-radio">
+                                <span class="color-ring w-9 h-9 rounded-full border-2 border-transparent flex items-center justify-center transition-all p-0.5">
+                                    <span class="w-full h-full rounded-full bg-[#FAF5EE] border border-stone-200" title="焦糖奶茶"></span>
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Side: Preview & Actions -->
+            <div class="lg:col-span-7 flex flex-col items-center space-y-6">
+                <!-- Canvas card preview container -->
+                <div class="w-full max-w-[420px] bg-white rounded-3xl overflow-hidden shadow-2xl border border-surface-container-high/40 transition-transform duration-300 hover:scale-[1.01] p-4 bg-gradient-to-tr from-surface-container-low to-white">
+                    <div class="text-center pb-2 text-[10px] text-on-surface-variant/60 font-bold uppercase tracking-widest flex items-center justify-center gap-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                        即時預覽圖卡 (4:5 比例)
+                    </div>
+                    <div class="relative w-full aspect-[4/5] bg-[#FFF0F2] rounded-2xl overflow-hidden shadow-inner flex items-center justify-center">
+                        <canvas id="sharing-card-canvas" width="800" height="1000" class="w-full h-full object-contain rounded-2xl"></canvas>
+                    </div>
+                </div>
+
+                <!-- Action buttons -->
+                <div class="w-full max-w-[420px] grid grid-cols-1 gap-3">
+                    <button type="button" id="btn-download" class="w-full py-3.5 bg-primary text-white font-bold text-sm rounded-full flex items-center justify-center gap-2 hover:bg-primary-dim active:scale-98 transition-all shadow-md">
+                        <span class="material-symbols-outlined text-[18px]">download</span>
+                        下載精美圖卡
+                    </button>
+                    
+                    <div class="grid grid-cols-2 gap-3">
+                        <button type="button" id="btn-share-line" class="py-3 bg-[#06C755] hover:bg-[#05b34c] text-white font-bold text-sm rounded-full flex items-center justify-center gap-2 active:scale-98 transition-all shadow-sm">
+                            <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                                <path d="M24 10.304c0-5.231-5.384-9.489-12-9.489s-12 4.258-12 9.489c0 4.69 4.27 8.632 10.035 9.379.39.084.922.258 1.057.593.12.3.078.766.038 1.067l-.164 1.021c-.049.303-.24 1.185 1.031.647 1.272-.538 6.848-4.032 9.34-6.9a8.9 8.9 0 0 0 2.663-6.227zm-15.53 3.491H6.945a.436.436 0 0 1-.436-.435v-4.14a.436.436 0 0 1 .436-.436h.5c.241 0 .436.195.436.436v3.204h.593a.436.436 0 0 1 .436.436v.44a.437.437 0 0 1-.436.435zm1.884-.435a.436.436 0 0 1-.436.435h-.5a.436.436 0 0 1-.436-.435v-4.14a.436.436 0 0 1 .436-.436h.5c.24 0 .435.195.435.436v4.14zm4.195 0a.437.437 0 0 1-.365.428c-.144.024-.593.064-.99-.272l-1.956-2.502v2.346a.436.436 0 0 1-.436.435h-.44a.436.436 0 0 1-.436-.435v-4.14a.436.436 0 0 1 .436-.436h.464c.182 0 .346.103.424.267l1.849 2.378V9.22a.436.436 0 0 1 .436-.436h.44a.436.436 0 0 1 .436.436v.414zm3.931-2.285h-1.393v.819h1.393a.436.436 0 0 1 .436.435v.44a.436.436 0 0 1-.436.436h-2.329a.436.436 0 0 1-.436-.436v-4.14a.436.436 0 0 1 .436-.436h2.329a.436.436 0 0 1 .436.436v.44a.436.436 0 0 1-.436.435h-1.393v.75h1.393a.436.436 0 0 1 .436.435v.44a.436.436 0 0 1-.436.436z"/>
+                            </svg>
+                            分享至 LINE
+                        </button>
+                        <button type="button" id="btn-share-native" class="py-3 bg-secondary hover:bg-secondary-dim text-white font-bold text-sm rounded-full flex items-center justify-center gap-2 active:scale-98 transition-all shadow-sm">
+                            <span class="material-symbols-outlined text-[16px]">share</span>
+                            社群分享
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- Modal Dialog / Status Notice -->
+<div id="toast-message" class="fixed bottom-24 left-1/2 transform -translate-x-1/2 bg-on-surface text-surface px-6 py-3 rounded-full text-xs font-bold opacity-0 transition-opacity duration-300 pointer-events-none z-[200] shadow-lg flex items-center gap-2">
+    <span class="material-symbols-outlined text-green-400 text-sm">check_circle</span>
+    <span id="toast-text">卡片已下載！</span>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const canvas = document.getElementById('sharing-card-canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Input Controls
+        const inputBabyName = document.getElementById('card-baby-name');
+        const inputBabyAge = document.getElementById('card-baby-age');
+        const inputMilestoneTitle = document.getElementById('card-milestone-title');
+        const inputDate = document.getElementById('card-date');
+        const inputMessage = document.getElementById('card-message');
+        const btnResetPhoto = document.getElementById('btn-reset-photo');
+        const photoBtns = document.querySelectorAll('.photo-thumbnail-btn');
+        const milestoneSelector = document.getElementById('milestone-selector');
+        
+        // Buttons
+        const btnDownload = document.getElementById('btn-download');
+        const btnTodayNote = document.getElementById('btn-today-note');
+        const btnShareLine = document.getElementById('btn-share-line');
+        const btnShareNative = document.getElementById('btn-share-native');
+        
+        // Current loaded image state
+        let uploadedImage = null;
+        
+        // Theme configs (Warm Macaron colors)
+        const themes = {
+            sakura: {
+                bgStart: '#FFF0F2',
+                bgEnd: '#FFE2E6',
+                border: '#FFB1C1',
+                pillsBg: '#FFE3E8',
+                pillsBorder: '#FFA1B2',
+                accentText: '#7D3C49',
+                detailsBg: '#FFF6F8',
+                cloudsColor: 'rgba(255, 209, 220, 0.4)'
+            },
+            sunny: {
+                bgStart: '#FFFDF0',
+                bgEnd: '#FFF7C2',
+                border: '#FFE385',
+                pillsBg: '#FFF4CD',
+                pillsBorder: '#FCD757',
+                accentText: '#635323',
+                detailsBg: '#FFFFFA',
+                cloudsColor: 'rgba(255, 239, 185, 0.4)'
+            },
+            sky: {
+                bgStart: '#F0F8FF',
+                bgEnd: '#D4ECFC',
+                border: '#A7D7F7',
+                pillsBg: '#DEEFFC',
+                pillsBorder: '#83C4F5',
+                accentText: '#1E4C6E',
+                detailsBg: '#F7FBFF',
+                cloudsColor: 'rgba(197, 227, 250, 0.4)'
+            },
+            lavender: {
+                bgStart: '#FAF5FF',
+                bgEnd: '#EBE0FF',
+                border: '#CBB2FF',
+                pillsBg: '#EFE3FF',
+                pillsBorder: '#B28FFF',
+                accentText: '#462C75',
+                detailsBg: '#FCFAFF',
+                cloudsColor: 'rgba(224, 203, 255, 0.4)'
+            },
+            caramel: {
+                bgStart: '#FAF8F5',
+                bgEnd: '#ECE6DC',
+                border: '#D0C3B1',
+                pillsBg: '#EFEBE4',
+                pillsBorder: '#C1B098',
+                accentText: '#4E3E2F',
+                detailsBg: '#FCFAF8',
+                cloudsColor: 'rgba(235, 226, 212, 0.4)'
+            }
+        };
+        
+        function getSelectedTheme() {
+            const checkedRadio = document.querySelector('input[name="card-theme"]:checked');
+            return themes[checkedRadio ? checkedRadio.value : 'sakura'];
+        }
+
+        // Draw helper: Rounded Rect for Canvas
+        CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+            if (w < 2 * r) r = w / 2;
+            if (h < 2 * r) r = h / 2;
+            this.beginPath();
+            this.moveTo(x+r, y);
+            this.arcTo(x+w, y,   x+w, y+h, r);
+            this.arcTo(x+w, y+h, x,   y+h, r);
+            this.arcTo(x,   y+h, x,   y,   r);
+            this.arcTo(x,   y,   x+w, y,   r);
+            this.closePath();
+            return this;
+        };
+
+        // Text wrapping function
+        function getLines(ctx, text, maxWidth) {
+            var words = text.split("");
+            var lines = [];
+            var currentLine = "";
+
+            for (var n = 0; n < words.length; n++) {
+                var testLine = currentLine + words[n];
+                var metrics = ctx.measureText(testLine);
+                var testWidth = metrics.width;
+                if (testWidth > maxWidth && n > 0) {
+                    lines.push(currentLine);
+                    currentLine = words[n];
+                } else {
+                    currentLine = testLine;
+                }
+            }
+            lines.push(currentLine);
+            return lines;
+        }
+
+        // Beautiful Cartoon Baby Face Drawing
+        function drawBabyPlaceholder(ctx, cx, cy) {
+            // Draw face circle
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = '#FFE2CD';
+            ctx.beginPath();
+            ctx.arc(cx, cy, 70, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Hair/Cap (bonnet)
+            ctx.fillStyle = '#F5B0C0';
+            ctx.beginPath();
+            ctx.arc(cx, cy - 20, 60, Math.PI, 0);
+            ctx.fill();
+            
+            // Bonnet tie
+            ctx.fillStyle = '#E08599';
+            ctx.beginPath();
+            ctx.arc(cx, cy + 50, 8, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Eyes (sleeping curves)
+            ctx.strokeStyle = '#5E4E40';
+            ctx.lineWidth = 4;
+            ctx.lineCap = 'round';
+            // Left eye
+            ctx.beginPath();
+            ctx.arc(cx - 25, cy + 5, 12, 0.1 * Math.PI, 0.9 * Math.PI);
+            ctx.stroke();
+            // Right eye
+            ctx.beginPath();
+            ctx.arc(cx + 25, cy + 5, 12, 0.1 * Math.PI, 0.9 * Math.PI);
+            ctx.stroke();
+
+            // Blush cheeks
+            ctx.fillStyle = 'rgba(255, 137, 168, 0.5)';
+            ctx.beginPath();
+            ctx.arc(cx - 40, cy + 20, 14, 0, Math.PI * 2);
+            ctx.arc(cx + 40, cy + 20, 14, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Smile mouth
+            ctx.strokeStyle = '#5E4E40';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(cx, cy + 22, 10, 0, Math.PI);
+            ctx.stroke();
+            
+            // Decorative sparkles
+            ctx.fillStyle = '#FFF275';
+            ctx.beginPath();
+            ctx.arc(cx - 80, cy - 60, 6, 0, Math.PI * 2);
+            ctx.arc(cx + 90, cy - 40, 4, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Invitation text
+            ctx.fillStyle = '#8E8276';
+            ctx.font = 'bold 18px "Be Vietnam Pro", "sans-serif"';
+            ctx.textAlign = 'center';
+            ctx.fillText('📷 選擇里程碑或上傳寶寶照片', cx, cy + 120);
+        }
+
+        // Draw sharing card on canvas
+        function renderCard() {
+            const theme = getSelectedTheme();
+            const width = canvas.width;
+            const height = canvas.height;
+            
+            // 1. Clear Canvas & draw warm gradient background
+            ctx.shadowBlur = 0;
+            const grad = ctx.createLinearGradient(0, 0, 0, height);
+            grad.addColorStop(0, theme.bgStart);
+            grad.addColorStop(1, theme.bgEnd);
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, width, height);
+
+            // 2. Draw cute cloud shape accents in background
+            ctx.fillStyle = theme.cloudsColor;
+            
+            // Top left cloud
+            ctx.beginPath();
+            ctx.arc(100, 100, 60, 0, Math.PI * 2);
+            ctx.arc(160, 90, 70, 0, Math.PI * 2);
+            ctx.arc(220, 110, 50, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Bottom right cloud
+            ctx.beginPath();
+            ctx.arc(680, 890, 60, 0, Math.PI * 2);
+            ctx.arc(740, 880, 70, 0, Math.PI * 2);
+            ctx.arc(620, 900, 55, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 3. Draw dashed inner border for postcard/poloroid style
+            ctx.strokeStyle = theme.border;
+            ctx.lineWidth = 4;
+            ctx.setLineDash([15, 10]);
+            ctx.roundRect(25, 25, width - 50, height - 50, 24);
+            ctx.stroke();
+            ctx.setLineDash([]); // Reset dash
+
+            // 4. Header title: CoLoGrowth Milestone
+            ctx.fillStyle = theme.accentText;
+            ctx.textAlign = 'center';
+            ctx.font = 'bold 22px "Plus Jakarta Sans", sans-serif';
+            ctx.fillText('🏆 CoLoGrowth 成長里程碑 🏆', width / 2, 75);
+
+            // 5. Draw Polaroid style container for photo
+            const boxX = 100;
+            const boxY = 120;
+            const boxW = 600;
+            
+            // Default sizes
+            let boxH = 500;
+            let photoH = boxH - 70; // 430
+            
+            const photoX = boxX + 20;
+            const photoY = boxY + 20;
+            const photoW = boxW - 40; // 560
+            
+            if (uploadedImage) {
+                const imgW = uploadedImage.width;
+                const imgH = uploadedImage.height;
+                const imageRatio = imgW / imgH;
+                
+                // If it is landscape, we can dynamically scale height to avoid empty white spaces
+                if (imageRatio > 1.1) {
+                    const targetPhotoH = Math.round(photoW / imageRatio);
+                    // Make sure it doesn't get too small or too large
+                    photoH = Math.max(260, Math.min(430, targetPhotoH));
+                    boxH = photoH + 70;
+                }
+            }
+            
+            // White polaroid base with shadow
+            ctx.shadowColor = 'rgba(74, 63, 53, 0.15)';
+            ctx.shadowBlur = 20;
+            ctx.shadowOffsetY = 8;
+            ctx.fillStyle = '#FFFFFF';
+            ctx.roundRect(boxX, boxY, boxW, boxH, 16);
+            ctx.fill();
+            
+            // Reset shadow for drawing image
+            ctx.shadowColor = 'transparent';
+            ctx.shadowBlur = 0;
+            ctx.shadowOffsetY = 0;
+
+            if (uploadedImage) {
+                // Render uploaded / loaded image inside photo frame (Contain fit, no cropping)
+                ctx.save();
+                ctx.roundRect(photoX, photoY, photoW, photoH, 8);
+                ctx.clip();
+                
+                // Draw a soft background under the contained image
+                ctx.fillStyle = '#FCFAF8';
+                ctx.fillRect(photoX, photoY, photoW, photoH);
+                
+                const imgW = uploadedImage.width;
+                const imgH = uploadedImage.height;
+                const r = Math.min(photoW / imgW, photoH / imgH);
+                const nw = imgW * r;
+                const nh = imgH * r;
+                const cx = (photoW - nw) / 2;
+                const cy = (photoH - nh) / 2;
+                
+                ctx.drawImage(uploadedImage, photoX + cx, photoY + cy, nw, nh);
+                ctx.restore();
+            } else {
+                // Draw adorable cartoon baby face as placeholder
+                ctx.save();
+                ctx.roundRect(photoX, photoY, photoW, photoH, 8);
+                ctx.fillStyle = '#FCFAF8';
+                ctx.fillRect(photoX, photoY, photoW, photoH);
+                ctx.restore();
+                
+                drawBabyPlaceholder(ctx, photoX + photoW/2, photoY + photoH/2 - 20);
+            }
+
+            // Polaroid caption: Date
+            const rawDate = inputDate.value;
+            let formattedDate = '';
+            if (rawDate) {
+                const parts = rawDate.split('-');
+                if (parts.length === 3) {
+                    formattedDate = `${parts[0]} 年 ${parts[1]} 月 ${parts[2]} 日`;
+                }
+            }
+            ctx.fillStyle = '#8E8276';
+            ctx.font = 'bold 16px "Be Vietnam Pro", sans-serif';
+            ctx.textAlign = 'right';
+            ctx.fillText(formattedDate || '記錄日期', boxX + boxW - 30, boxY + boxH - 22);
+
+            // Calculate bottom of polaroid box
+            const boxBottomY = boxY + boxH;
+            const dividerY = 920;
+            const availableSpace = dividerY - boxBottomY; // e.g. 300px to 415px
+            
+            // Text values
+            const milestoneText = inputMilestoneTitle.value || '第一次學會了！';
+            const nameText = inputBabyName.value || '寶寶';
+            const ageText = inputBabyAge.value || '3個月';
+            const messageVal = inputMessage.value || '今天真是非常棒的一天！';
+            
+            // Measure message lines
+            ctx.font = 'medium 20px "Be Vietnam Pro", sans-serif';
+            const lines = getLines(ctx, messageVal, 560);
+            const lineSpacing = 32;
+            const messageHeight = lines.length * lineSpacing - (lineSpacing - 20);
+            
+            // Define standard vertical gaps inside the bottom section
+            const gap1 = 25;
+            const gap2 = 35;
+            const totalContentHeight = 40 + gap1 + 44 + gap2 + messageHeight;
+            
+            // Center the entire content block vertically in the availableSpace
+            const startY = boxBottomY + (availableSpace - totalContentHeight) / 2;
+            
+            // 6. Draw Milestone Title text
+            const milestoneY = startY + 30; // Text baseline positioning
+            ctx.fillStyle = theme.accentText;
+            ctx.font = 'bold 36px "Plus Jakarta Sans", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(milestoneText, width / 2, milestoneY);
+
+            // 7. Draw Pills for Name & Age
+            const pillsY = startY + 40 + gap1;
+            ctx.font = 'bold 22px "Be Vietnam Pro", sans-serif';
+            const nameWidth = ctx.measureText(nameText).width + 36;
+            const ageWidth = ctx.measureText(ageText).width + 36;
+            
+            const pillHeight = 44;
+            const pillSpacing = 15;
+            
+            const totalPillsWidth = nameWidth + ageWidth + pillSpacing;
+            const startPillX = (width - totalPillsWidth) / 2;
+
+            // Name Pill
+            ctx.fillStyle = theme.pillsBg;
+            ctx.strokeStyle = theme.pillsBorder;
+            ctx.lineWidth = 1.5;
+            ctx.roundRect(startPillX, pillsY, nameWidth, pillHeight, 22);
+            ctx.fill();
+            ctx.stroke();
+            
+            ctx.fillStyle = theme.accentText;
+            ctx.textAlign = 'left';
+            ctx.fillText(nameText, startPillX + 18, pillsY + pillHeight - 14);
+
+            // Age Pill
+            const agePillX = startPillX + nameWidth + pillSpacing;
+            ctx.fillStyle = theme.pillsBg;
+            ctx.strokeStyle = theme.pillsBorder;
+            ctx.lineWidth = 1.5;
+            ctx.roundRect(agePillX, pillsY, ageWidth, pillHeight, 22);
+            ctx.fill();
+            ctx.stroke();
+            
+            ctx.fillStyle = theme.accentText;
+            ctx.textAlign = 'left';
+            ctx.fillText(ageText, agePillX + 18, pillsY + pillHeight - 14);
+
+            // 8. Draw customizable diary message
+            const messageY = pillsY + pillHeight + gap2;
+            ctx.fillStyle = '#4E3E2F';
+            ctx.font = 'medium 20px "Be Vietnam Pro", sans-serif';
+            ctx.textAlign = 'center';
+            
+            lines.forEach((line, index) => {
+                ctx.fillText(line, width / 2, messageY + 20 + (index * lineSpacing));
+            });
+
+            // 9. Draw Footer divider & Branding Watermark
+            ctx.strokeStyle = 'rgba(78, 62, 47, 0.08)';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(80, 920);
+            ctx.lineTo(width - 80, 920);
+            ctx.stroke();
+
+            ctx.fillStyle = '#8E8276';
+            ctx.font = 'semibold 14px "Be Vietnam Pro", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('本卡片由 CoLoGrowth 智慧育兒助手生成 🧸 守護寶寶的每一個成長瞬間', width / 2, 955);
+        }
+
+        // Live refresh trigger
+        function updateCanvas() {
+            renderCard();
+        }
+
+        // Trigger updates on input change
+        inputBabyName.addEventListener('input', updateCanvas);
+        inputBabyAge.addEventListener('input', updateCanvas);
+        inputMilestoneTitle.addEventListener('input', updateCanvas);
+        inputDate.addEventListener('change', updateCanvas);
+        inputMessage.addEventListener('input', updateCanvas);
+        
+        document.querySelectorAll('input[name="card-theme"]').forEach(radio => {
+            radio.addEventListener('change', updateCanvas);
+        });
+
+        // Handle Quick Select Milestone from Database
+        if (milestoneSelector) {
+            milestoneSelector.addEventListener('change', function() {
+                const opt = this.options[this.selectedIndex];
+                if (!opt.value) return;
+                
+                const milestoneName = opt.getAttribute('data-name');
+                const milestoneDate = opt.getAttribute('data-date');
+                const photoUrl = opt.getAttribute('data-photo');
+                const recordText = opt.getAttribute('data-record');
+                
+                // Auto fill fields
+                inputMilestoneTitle.value = `第一次學會${milestoneName}！`;
+                if (milestoneDate) {
+                    inputDate.value = milestoneDate;
+                }
+                
+                // Construct a warm suggestion if recordText is empty
+                if (recordText) {
+                    inputMessage.value = recordText;
+                } else {
+                    inputMessage.value = getWarmSuggestText(milestoneName);
+                }
+                
+                // Load photo if available
+                if (photoUrl) {
+                    const img = new Image();
+                    img.crossOrigin = "anonymous";
+                    img.onload = function() {
+                        uploadedImage = img;
+                        updateCanvas();
+                    };
+                    img.onerror = function() {
+                        // Photo failed to load (broken URL, 404, CORS, etc.)
+                        // Fall back to the cute baby placeholder instead of leaving a blank/stale canvas
+                        uploadedImage = null;
+                        photoBtns.forEach(btn => btn.classList.remove('ring-4', 'ring-primary', 'border-primary'));
+                        updateCanvas();
+                        showToast("照片載入失敗，已改用預設插畫 🧸");
+                    };
+                    img.src = photoUrl;
+                    
+                    // Highlight the matching thumbnail in the album grid
+                    photoBtns.forEach(btn => {
+                        if (btn.getAttribute('data-url') === photoUrl) {
+                            btn.classList.add('ring-4', 'ring-primary', 'border-primary');
+                        } else {
+                            btn.classList.remove('ring-4', 'ring-primary', 'border-primary');
+                        }
+                    });
+                } else {
+                    uploadedImage = null;
+                    photoBtns.forEach(btn => btn.classList.remove('ring-4', 'ring-primary', 'border-primary'));
+                    updateCanvas();
+                }
+                
+                updateCanvas();
+            });
+        }
+
+        // 「當日成長筆記」— 抓取「目前選取里程碑」達成日期當天的 BabyRecord.record
+        if (btnTodayNote) {
+            btnTodayNote.addEventListener('click', function() {
+                if (!milestoneSelector || !milestoneSelector.value) {
+                    showToast("請先選擇一個已達成的里程碑 📋");
+                    return;
+                }
+                const opt = milestoneSelector.options[milestoneSelector.selectedIndex];
+                const recordText = opt.getAttribute('data-record');
+                if (recordText) {
+                    inputMessage.value = recordText;
+                    updateCanvas();
+                    showToast("已帶入當日成長筆記 📝");
+                } else {
+                    showToast("這天還沒有成長紀錄喔 📭");
+                }
+            });
+        }
+
+        function getWarmSuggestText(milestoneName) {
+            if (milestoneName.includes('翻身')) {
+                return "寶寶今天突然用力翻身了！全家人都開心地為你鼓掌，真是太神奇的瞬間！";
+            } else if (milestoneName.includes('抬頭')) {
+                return "今天成功把頭抬得高高的，小眼睛對周圍充滿了好奇，真勇敢！";
+            } else if (milestoneName.includes('爬')) {
+                return "手腳並用，像小火箭一樣往前爬！看著你努力的模樣，爸爸媽媽無比感動。";
+            } else if (milestoneName.includes('笑') || milestoneName.includes('聲音')) {
+                return "清脆好聽的笑聲，把我們的心都融化了，你是家裡最溫馨的開心果。";
+            }
+            return `成功完成了「${milestoneName}」！看著你每天的小進步，都是爸爸媽媽最大的幸福。`;
+        }
+
+        // Photo Picker selection logic
+        photoBtns.forEach(btn => {
+            btn.addEventListener('click', function() {
+                // Clear previous active rings
+                photoBtns.forEach(b => b.classList.remove('ring-4', 'ring-primary', 'border-primary'));
+                
+                // Add active ring
+                this.classList.add('ring-4', 'ring-primary', 'border-primary');
+                
+                const url = this.getAttribute('data-url');
+                const label = this.getAttribute('data-label');
+                const date = this.getAttribute('data-date');
+                const desc = this.getAttribute('data-desc');
+                
+                // Set card fields
+                if (label && label !== "成長紀錄" && label !== "產檢超音波" && label !== "CoLoGrowth") {
+                    inputMilestoneTitle.value = label;
+                }
+                if (date) {
+                    inputDate.value = date;
+                }
+                if (desc) {
+                    inputMessage.value = desc;
+                }
+                
+                // Load image to draw on canvas
+                const img = new Image();
+                img.crossOrigin = "anonymous";
+                img.onload = function() {
+                    uploadedImage = img;
+                    updateCanvas();
+                    showToast("已選取紀錄照片 📸");
+                };
+                img.onerror = function() {
+                    // Photo failed to load (broken URL, 404, CORS, etc.)
+                    // Fall back to the cute baby placeholder instead of leaving a blank/stale canvas
+                    uploadedImage = null;
+                    photoBtns.forEach(b => b.classList.remove('ring-4', 'ring-primary', 'border-primary'));
+                    updateCanvas();
+                    showToast("照片載入失敗，已改用預設插畫 🧸");
+                };
+                img.src = url;
+            });
+        });
+
+        // Reset Photo logic
+        if (btnResetPhoto) {
+            btnResetPhoto.addEventListener('click', function() {
+                uploadedImage = null;
+                photoBtns.forEach(b => b.classList.remove('ring-4', 'ring-primary', 'border-primary'));
+                if (milestoneSelector) milestoneSelector.value = '';
+                updateCanvas();
+                showToast("已重設為插畫風格 🧸");
+            });
+        }
+
+        // Download Action
+        btnDownload.addEventListener('click', function() {
+            const dataUrl = canvas.toDataURL('image/png');
+            const link = document.createElement('a');
+            link.download = `CoLoGrowth_${inputBabyName.value || 'Baby'}_Milestone.png`;
+            link.href = dataUrl;
+            link.click();
+            showToast("圖卡已下載至您的裝置 📁");
+        });
+
+        // Share to LINE logic - Always open White LINE Share window (social-plugins.line.me) with OpenGraph image preview
+        btnShareLine.addEventListener('click', function() {
+            showToast("正在準備圖卡並開啟 LINE... ⏳");
+            
+            const dataUrl = canvas.toDataURL('image/png');
+            const formData = new FormData();
+            formData.append('image_data', dataUrl);
+
+            // Copy image to clipboard as fallback so user can Ctrl+V in chat room
+            canvas.toBlob(async function(blob) {
+                if (navigator.clipboard && window.ClipboardItem && blob) {
+                    try {
+                        await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+                    } catch (e) {}
+                }
+            }, 'image/png');
+
+            // 一律走本站 API。
+            // 原本在 localhost 時會把寶寶的照片上傳到第三方暫存站 tmpfiles.org（公開網址、
+            // 任何人都讀得到），那是把家庭私人照片外流，已移除。
+            uploadToSite();
+
+            function uploadToSite() {
+                const csrfInput = document.querySelector('#csrf-token-holder [name=csrfmiddlewaretoken]');
+                if (csrfInput) {
+                    formData.append('csrfmiddlewaretoken', csrfInput.value);
+                }
+                fetch('/api/upload_sharing_card/', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: csrfInput ? { 'X-CSRFToken': csrfInput.value } : {},
+                    body: formData
+                })
+                .then(res => res.json())
+                .then(data => {
+                    const targetUrl = (data.status === 'success' && data.share_page_url) ? data.share_page_url : window.location.href;
+                    const lineShareUrl = `https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(targetUrl)}`;
+                    window.open(lineShareUrl, '_blank', 'width=550,height=650,resizable=yes,scrollbars=yes');
+                    showToast("已成功開啟 LINE 分享視窗！ 💬");
+                })
+                .catch(err => {
+                    console.error("Upload card failed:", err);
+                    const lineShareUrl = `https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(window.location.href)}`;
+                    window.open(lineShareUrl, '_blank', 'width=550,height=650,resizable=yes,scrollbars=yes');
+                    showToast("已開啟 LINE 分享視窗 💬");
+                });
+            }
+        });
+
+
+
+
+
+
+
+
+
+        // Native share or clipboard copy
+        btnShareNative.addEventListener('click', function() {
+            if (navigator.share && navigator.canShare) {
+                canvas.toBlob(function(blob) {
+                    const file = new File([blob], "milestone_card.png", {type: "image/png"});
+                    if (navigator.canShare({ files: [file] })) {
+                        navigator.share({
+                            files: [file],
+                            title: '寶寶成長里程碑圖卡',
+                            text: `我家 ${inputBabyName.value || '寶寶'} 完成「${inputMilestoneTitle.value}」了！快來看！`
+                        })
+                        .then(() => showToast("分享成功 🌟"))
+                        .catch((error) => console.log('Share failed', error));
+                    } else {
+                        fallbackShare();
+                    }
+                });
+            } else {
+                fallbackShare();
+            }
+        });
+
+        function fallbackShare() {
+            // Fallback: Copy link and suggest copying photo
+            const dummy = document.createElement('input');
+            document.body.appendChild(dummy);
+            dummy.value = window.location.href;
+            dummy.select();
+            document.execCommand('copy');
+            document.body.removeChild(dummy);
+            showToast("已複製網頁連結！點擊下載後即可手動貼上圖片。🔗");
+        }
+
+        // Toast notification system
+        const toast = document.getElementById('toast-message');
+        const toastText = document.getElementById('toast-text');
+        let toastTimeout = null;
+
+        function showToast(message) {
+            if (toastTimeout) clearTimeout(toastTimeout);
+            toastText.textContent = message;
+            toast.classList.remove('opacity-0');
+            toast.classList.add('opacity-100');
+            
+            toastTimeout = setTimeout(() => {
+                toast.classList.remove('opacity-100');
+                toast.classList.add('opacity-0');
+            }, 3000);
+        }
+
+        // Auto select the first completed milestone if present to initialize the card
+        if (milestoneSelector && milestoneSelector.options.length > 1) {
+            milestoneSelector.selectedIndex = 1;
+            milestoneSelector.dispatchEvent(new Event('change'));
+        } else {
+            // Initial draw
+            updateCanvas();
+        }
+    });
+</script>
+{% endblock %}

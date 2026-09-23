@@ -5,10 +5,15 @@ from django.utils import timezone
 from zoneinfo import ZoneInfo
 
 from core.models import CareStatus, CareRecord, FamilyMember
-from django.db import transaction, models as djmodels
+from django.db.models import Q
 from views.pregnancycase import url_with_active_selection, resolve_active_pregnancy_case
 from views.session_utils import get_current_user_profile
 from views import baby_utils
+
+# 內容欄位 CareRecord.content 的 max_length 是 100，截斷長度必須與 schema 一致，
+# 否則超過 100 字會被 MySQL 拒絕（strict mode）或無聲截斷。
+CONTENT_MAX_LENGTH = 100
+
 
 def _parse_selected_date(raw):
     try:
@@ -24,6 +29,32 @@ def _check_care_permission(user, case, required='view'):
     return baby_utils.has_permission(membership, 'care_records', required,  default='view')
 
 
+def _care_record_for(case, current_user, care_id):
+    """在目前胎數內尋找待辦；同時相容 pregnancycase 為 NULL 的舊資料。
+
+    舊資料在 index 會被列出（以 user 過濾），若這裡只用 pregnancycase=case 找，
+    使用者會看得到卻永遠編輯／刪除／勾選不了。
+    """
+    if not care_id:
+        return None
+    try:
+        care_id = int(care_id)
+    except (TypeError, ValueError):
+        return None
+    return CareRecord.objects.filter(
+        Q(pregnancycase=case) | Q(pregnancycase__isnull=True, user=current_user),
+        carerecord_id=care_id,
+    ).first()
+
+
+def _redirect_home_with_error(request, selected_date, error_code):
+    """權限不足時帶著錯誤碼回首頁，而不是無聲 redirect。"""
+    return redirect(url_with_active_selection(request, '/', {
+        'date': selected_date.isoformat(),
+        'care_error': error_code,
+    }))
+
+
 def add_care_reminder(request):
     current_user = get_current_user_profile(request)
     if not current_user:
@@ -33,10 +64,11 @@ def add_care_reminder(request):
     if not case:
         return redirect('pregnancy_case')
 
-    if not _check_care_permission(current_user, case, required='edit'):
-        return redirect('/')
-
     selected_date = _parse_selected_date(request.GET.get('date'))
+
+    if not _check_care_permission(current_user, case, required='edit'):
+        return _redirect_home_with_error(request, selected_date, 'care_edit')
+
     error_message = None
     form_data = {}
 
@@ -62,20 +94,16 @@ def add_care_reminder(request):
                 error_message = '請選擇有效的類別。'
 
         if not error_message:
-            # Some environments have carerecord_id without a DB default/sequence.
-            # Ensure we provide a non-null PK by selecting max+1 inside a transaction.
-            with transaction.atomic():
-                max_row = CareRecord.objects.aggregate(max_id=djmodels.Max('carerecord_id'))
-                next_id = (max_row.get('max_id') or 0) + 1
-                CareRecord.objects.create(
-                    carerecord_id=next_id,
-                    pregnancycase=case,
-                    user=current_user,
-                    carestatus=carestatus,
-                    recordtime=record_dt,
-                    content=form_data['content'][:255],
-                    create_time=datetime.datetime.now(ZoneInfo('Asia/Taipei')).replace(tzinfo=None),
-                )
+            # carerecord_id 是 AutoField，主鍵交給資料庫產生；
+            # 原本手算 Max+1 在多人同時新增時會撞鍵。
+            CareRecord.objects.create(
+                pregnancycase=case,
+                user=current_user,
+                carestatus=carestatus,
+                recordtime=record_dt,
+                content=form_data['content'][:CONTENT_MAX_LENGTH],
+                create_time=datetime.datetime.now(ZoneInfo('Asia/Taipei')).replace(tzinfo=None),
+            )
             return redirect(url_with_active_selection(request, '/', {'date': form_data['record_date']}))
 
     carestatus_list = list(CareStatus.objects.all())
@@ -97,17 +125,18 @@ def edit_care_reminder(request):
     if not case:
         return redirect('pregnancy_case')
 
+    selected_date = _parse_selected_date(request.GET.get('date') or request.POST.get('selected_date'))
+
     if not _check_care_permission(current_user, case, required='edit'):
-        return redirect('/')
+        return _redirect_home_with_error(request, selected_date, 'care_edit')
 
     # carerecord_id 可能來自查詢字串 (GET 進入編輯頁) 或表單 (POST 送出更新)
     care_id = request.GET.get('carerecord_id') or request.POST.get('carerecord_id')
     # 用 case 篩選，不限定 user=current_user，讓同一胎數的協助者也能編輯同一份清單
-    care_record = CareRecord.objects.filter(carerecord_id=care_id, pregnancycase=case).first()
+    care_record = _care_record_for(case, current_user, care_id)
     if not care_record:
-        return redirect('/')
+        return _redirect_home_with_error(request, selected_date, 'care_missing')
 
-    selected_date = _parse_selected_date(request.GET.get('date') or request.POST.get('selected_date'))
     error_message = None
 
     orig_local_dt = timezone.localtime(care_record.recordtime)
@@ -136,7 +165,7 @@ def edit_care_reminder(request):
         if not error_message:
             care_record.carestatus = carestatus
             care_record.recordtime = record_dt
-            care_record.content = form_data['content'][:255]
+            care_record.content = form_data['content'][:CONTENT_MAX_LENGTH]
             care_record.save(update_fields=['carestatus', 'recordtime', 'content'])
             return redirect(url_with_active_selection(request, '/', {'date': form_data['record_date']}))
 
@@ -179,15 +208,16 @@ def set_care_status(request):
     selected_date = _parse_selected_date(request.POST.get('selected_date'))
     case = resolve_active_pregnancy_case(request, current_user)
 
-    if not case or not _check_care_permission(current_user, case, required='view'):
-        return redirect(url_with_active_selection(request, '/', {'date': selected_date.isoformat()}))
+    # 勾選完成也是寫入操作，與新增／編輯／刪除一致要求 edit 權限
+    if not case or not _check_care_permission(current_user, case, required='edit'):
+        return _redirect_home_with_error(request, selected_date, 'care_edit')
 
     care_id = request.POST.get('carerecord_id')
     new_state = request.POST.get('state') in ('1', 'true', 'True', 'on')
 
     if care_id:
         # 用 case 篩選，不再限定 user=current_user，這樣同一胎數的協助者才能操作同一份清單
-        care_record = CareRecord.objects.filter(carerecord_id=care_id, pregnancycase=case).first()
+        care_record = _care_record_for(case, current_user, care_id)
         if care_record:
             care_record.state = new_state
             care_record.save(update_fields=['state'])
@@ -207,12 +237,12 @@ def delete_care_reminder(request):
     case = resolve_active_pregnancy_case(request, current_user)
 
     if not case or not _check_care_permission(current_user, case, required='edit'):
-        return redirect(url_with_active_selection(request, '/', {'date': selected_date.isoformat()}))
+        return _redirect_home_with_error(request, selected_date, 'care_edit')
 
     care_id = request.POST.get('carerecord_id')
     if care_id:
         # 用 case 篩選，不再限定 user=current_user，這樣同一胎數的協助者才能操作同一份清單
-        care_record = CareRecord.objects.filter(carerecord_id=care_id, pregnancycase=case).first()
+        care_record = _care_record_for(case, current_user, care_id)
         if care_record:
             care_record.delete()
 

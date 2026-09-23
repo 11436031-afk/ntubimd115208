@@ -17,7 +17,8 @@
     </header>
 
     <main class="pt-2 pb-32 px-4 max-w-md md:max-w-none mx-auto w-full md:px-8 lg:px-16 xl:px-32 2xl:px-64 space-y-8">
-        <form method="post" action="{% url 'edit_baby_record' babyrecord_id=record.babyrecord_id %}" enctype="multipart/form-data">
+        <form method="post" action="{% url 'edit_baby_record' babyrecord_id=record.babyrecord_id %}" enctype="multipart/form-data"
+              id="baby-record-form">
             {% csrf_token %}
             {% if error %}
             <div class="rounded-3xl bg-red-50 border border-red-200 text-red-700 p-4">{{ error }}</div>
@@ -44,7 +45,7 @@
                     </div>
                     <div class="flex-1">
                         <p class="text-sm font-bold mb-1">紀錄日期</p>
-                        <input id="check-date-input" name="date" class="text-xs text-on-surface-variant bg-transparent border-none p-0 w-full cursor-pointer" type="date" value="{{ record.date|date:'Y-m-d' }}" max="{{ today_iso }}" min="{{ record.baby.birthdaytime|date:'Y-m-d' }}" />
+                        <input id="check-date-input" name="date" class="text-xs text-on-surface-variant bg-transparent border-none p-0 w-full cursor-pointer" type="date" value="{{ form_data.date|default:'' }}" max="{{ today_iso }}" min="{{ baby.birthdaytime|date:'Y-m-d' }}" />
                     </div>
                 </div>
             </div>
@@ -56,19 +57,19 @@
                 <div class="grid grid-cols-2 gap-4">
                     <div class="bg-[#d6beff4d] p-5 rounded-3xl relative flex flex-col justify-center items-center gap-2 h-24">
                         <span class="text-[10px] font-bold text-[#65518a]/80">身高 (CM)</span>
-                        <input name="height" class="bg-transparent text-center border-none p-0 text-3xl font-headline font-bold text-[#65518a] w-full focus:ring-0" type="number" step="0.1" min="25" max="130" value="{{ record.height|default:'' }}" />
+                        <input name="height" class="bg-transparent text-center border-none p-0 text-3xl font-headline font-bold text-[#65518a] w-full focus:ring-0" type="number" step="0.1" min="25" max="130" value="{{ form_data.height|default_if_none:'' }}" />
                     </div>
                     <div class="bg-[#d6beff4d] p-5 rounded-3xl relative flex flex-col justify-center items-center gap-2 h-24">
                         <span class="text-[10px] font-bold text-[#65518a]/80">體重 (KG)</span>
-                        <input name="weight" class="bg-transparent text-center border-none p-0 text-3xl font-headline font-bold text-[#65518a] w-full focus:ring-0" type="number" step="0.01" min="0.3" max="30" value="{{ record.weight|default:'' }}" />
+                        <input name="weight" class="bg-transparent text-center border-none p-0 text-3xl font-headline font-bold text-[#65518a] w-full focus:ring-0" type="number" step="0.01" min="0.3" max="30" value="{{ form_data.weight|default_if_none:'' }}" />
                     </div>
                     <div class="bg-[#d6beff4d] p-5 rounded-3xl relative flex flex-col justify-center items-center gap-2 h-24">
                         <span class="text-[10px] font-bold text-[#65518a]/80">頭圍 (CM)</span>
-                        <input name="headcircumference" class="bg-transparent text-center border-none p-0 text-3xl font-headline font-bold text-[#65518a] w-full focus:ring-0" type="number" step="0.1" min="25" max="60" value="{{ record.headcircumference|default:'' }}" />
+                        <input name="headcircumference" class="bg-transparent text-center border-none p-0 text-3xl font-headline font-bold text-[#65518a] w-full focus:ring-0" type="number" step="0.1" min="25" max="60" value="{{ form_data.headcircumference|default_if_none:'' }}" />
                     </div>
                     <div class="bg-[#d6beff4d] p-5 rounded-3xl relative flex flex-col justify-center items-center gap-2 h-24">
                         <span class="text-[10px] font-bold text-[#65518a]/80">胸圍 (CM)</span>
-                        <input name="chestcircumference" class="bg-transparent text-center border-none p-0 text-3xl font-headline font-bold text-[#65518a] w-full focus:ring-0" type="number" step="0.1" min="20" max="60" value="{{ record.chestcircumference|default:'' }}" />
+                        <input name="chestcircumference" class="bg-transparent text-center border-none p-0 text-3xl font-headline font-bold text-[#65518a] w-full focus:ring-0" type="number" step="0.1" min="20" max="60" value="{{ form_data.chestcircumference|default_if_none:'' }}" />
                     </div>
                 </div>
             </div>
@@ -79,7 +80,7 @@
                 <div class="flex flex-wrap gap-3 milestone-buttons">
                     {% for ms in all_milestones %}
                     <button type="button" class="milestone-item px-6 py-3 rounded-full text-sm font-medium transition-all cursor-pointer
-                        {% if ms.growthrecord in record.milestones %}bg-[#d6beff80] text-[#65518a]{% else %}bg-surface-container-low text-on-surface-variant{% endif %}">
+                        {% if ms.growthrecord in selected_milestone_list %}bg-[#d6beff80] text-[#65518a]{% else %}bg-surface-container-low text-on-surface-variant{% endif %}">
                         {{ ms.growthrecord }}
                     </button>
                     {% endfor %}
@@ -88,11 +89,13 @@
 
             <div class="space-y-4">
                 <label class="block text-sm font-medium text-on-surface-variant px-1">成長筆記</label>
-                <textarea name="record" class="w-full bg-surface-container-lowest border-none rounded-[2rem] p-6 h-40 text-on-surface resize-none">{{ record.note_text|default:'' }}</textarea>
+                <textarea name="record" class="w-full bg-surface-container-lowest border-none rounded-[2rem] p-6 h-40 text-on-surface resize-none">{{ form_data.record|default:'' }}</textarea>
             </div>
 
             <div class="pt-8 pb-12">
-                <button type="submit" class="w-full py-4 bg-[#65518a] text-white rounded-full font-headline font-bold text-lg">
+                <!-- 送出後由 JS 立即 disable，避免使用者連點造成重複送出 -->
+                <button type="submit" id="record-submit-btn"
+                        class="w-full py-4 bg-[#65518a] text-white rounded-full font-headline font-bold text-lg disabled:opacity-60 disabled:cursor-not-allowed">
                     確認儲存修改
                 </button>
             </div>
@@ -156,7 +159,15 @@
             });
         }
 
-        // 里程碑按鈕點擊
+        const recordForm = document.getElementById('baby-record-form');
+        const submitBtn  = document.getElementById('record-submit-btn');
+        if (recordForm && submitBtn) {
+            recordForm.addEventListener('submit', () => {
+                // Disable on the next tick so the browser still serializes the form.
+                setTimeout(() => { submitBtn.disabled = true; }, 0);
+            });
+        }
+
         const milestonesInput = document.getElementById('milestones');
         const buttons = document.querySelectorAll('.milestone-item');
         buttons.forEach(button => {
