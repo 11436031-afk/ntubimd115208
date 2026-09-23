@@ -1,6 +1,5 @@
 import datetime
 from datetime import timedelta
-from urllib import request
 
 from django.db.models import Q
 from django.shortcuts import render, redirect
@@ -18,21 +17,31 @@ from views.pregnancycase import (
 )
 from views.session_utils import get_current_user_profile
 
-DEFAULT_USER_ID = 'ab63df64-b61f-480e-a61c-d54b851d2b5e'
 TAIWAN_TZ = ZoneInfo('Asia/Taipei')
+
+# care_record.py 權限不足時會帶 ?care_error=，在首頁轉成可讀訊息（避免無聲 redirect）
+CARE_ERROR_MESSAGES = {
+    'care_edit': '你目前的權限只能查看待辦清單，無法新增、修改或勾選。',
+    'care_missing': '找不到這筆待辦清單，可能已被其他人刪除。',
+}
 
 
 def _parse_selected_date(raw):
     try:
-        return datetime.date.fromisoformat(raw) if raw else datetime.date.today()
+        return datetime.date.fromisoformat(raw) if raw else timezone.localdate()
     except Exception:
-        return datetime.date.today()
+        return timezone.localdate()
 
 
 def _day_bounds_in_taiwan(date_value):
-    start_naive = datetime.datetime.combine(date_value, datetime.time.min)
-    end_naive = start_naive + timedelta(days=1)
-    return start_naive, end_naive
+    """回傳該台北日期的起訖時間（aware）。
+
+    USE_TZ=True 時傳 naive datetime 給 ORM 會被當成預設時區並發出 warning，
+    這裡明確標成 Asia/Taipei，範圍才會正確對齊當地的一天。
+    """
+    start = datetime.datetime.combine(date_value, datetime.time.min, tzinfo=TAIWAN_TZ)
+    end = start + timedelta(days=1)
+    return start, end
 
 
 def _build_pregnancy_chart_data(user, pregnancy_case=None):
@@ -125,7 +134,7 @@ def _build_baby_chart_data(baby):
 
 def index(request):
     selected_date = _parse_selected_date(request.GET.get('date'))
-    today = datetime.date.today()
+    today = timezone.localdate()
     window_start = selected_date - timedelta(days=3)
     window_end = selected_date + timedelta(days=3)
 
@@ -147,14 +156,19 @@ def index(request):
 
     can_view_care = True
     can_edit_care = True
+    is_case_owner = bool(pregnancy_case and pregnancy_case.user_id == current_user.user_id)
     #哪位user新增的代辦清單
     care_queryset = CareRecord.objects.select_related('carestatus', 'user').order_by('recordtime', 'carerecord_id')
     if pregnancy_case:
-        if pregnancy_case.user_id != current_user.user_id:
+        if not is_case_owner:
             membership = FamilyMember.objects.filter(pregnancycase=pregnancy_case, user=current_user).first()
             can_view_care = baby_utils.has_permission(membership, 'care_records', 'view', default='view')
             can_edit_care = baby_utils.has_permission(membership, 'care_records', 'edit', default='view')
-        care_queryset = care_queryset.filter(pregnancycase=pregnancy_case) if can_view_care else care_queryset.none()
+        # 相容 pregnancycase 為 NULL 的舊待辦：一併列出自己建立的那些，
+        # 與 care_record.py 的查詢條件保持一致，才不會「看得到卻改不了」。
+        care_queryset = care_queryset.filter(
+            Q(pregnancycase=pregnancy_case) | Q(pregnancycase__isnull=True, user=current_user)
+        ) if can_view_care else care_queryset.none()
     else:
         # 還沒有任何 active case 時退回舊行為，避免整段壞掉
         care_queryset = care_queryset.filter(user=current_user)
@@ -229,5 +243,7 @@ def index(request):
         'current_user': current_user,
         'can_view_care': can_view_care,
         'can_edit_care': can_edit_care,
+        'is_case_owner': is_case_owner,
+        'care_error_message': CARE_ERROR_MESSAGES.get(request.GET.get('care_error')),
     }
-    return render(request, 'index/index.html', context)
+    return render(request, 'index/index.html', context)

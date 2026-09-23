@@ -67,7 +67,7 @@
                     </div>
                     <div class="flex justify-between mt-2">
                         {% if pregnancy_progress.is_ongoing %}
-                        <span class="text-[10px] font-bold text-on-surface-variant/60">第 1 週</span>
+                        <span class="text-[10px] font-bold text-on-surface-variant/60">第 0 週</span>
                         <span class="text-[10px] font-bold text-on-surface-variant/60">第 40 週</span>
                         {% else %}
                         <span class="text-[10px] font-bold text-on-surface-variant/60">0 個月</span>
@@ -84,11 +84,23 @@
                         <div class="flex flex-col gap-1">
                             <h3 class="font-bold text-primary text-lg">待辦清單</h3>
                         </div>
+                        {% if can_edit_care %}
                         <button onclick="window.location.href='/add_care_reminder/?date={{ selected_date_iso }}'"
                             class="bg-primary/10 text-primary w-8 h-8 rounded-full flex items-center justify-center hover:bg-primary/20 active:scale-90 transition-colors cursor-pointer shrink-0">
                             <span class="material-symbols-outlined text-lg" data-icon="add">add</span>
                         </button>
+                        {% endif %}
                     </div>
+
+                    {% if care_error_message %}
+                    <div class="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-2xl text-xs font-bold" role="alert">
+                        <span class="material-symbols-outlined text-base" style="font-variation-settings:'FILL' 1">error</span>
+                        {{ care_error_message }}
+                    </div>
+                    {% endif %}
+                    {% if not can_edit_care %}
+                    <p class="text-[11px] font-semibold text-on-surface-variant/70">你目前是「只能查看」的協助者，無法新增或修改待辦清單。</p>
+                    {% endif %}
 
                     <div class="flex items-center gap-2">
                         <button id="care-range-prev-btn" type="button" class="w-8 h-8 rounded-full hover:bg-primary/10 text-primary font-bold">&lt;</button>
@@ -132,6 +144,7 @@
                         {% if care_records %}
                             {% for care in care_records %}
                             <div class="flex items-start gap-3">
+                                {% if can_edit_care %}
                                 <form method="post" action="{% url 'set_care_status' %}" class="shrink-0">
                                     {% csrf_token %}
                                     <input type="hidden" name="carerecord_id" value="{{ care.carerecord_id }}">
@@ -143,6 +156,13 @@
                                         {% endif %}
                                     </button>
                                 </form>
+                                {% else %}
+                                <div class="w-6 h-6 rounded-md {% if care.state %}bg-[#d6beff]{% else %}border-2 border-[#d6beff]{% endif %} flex items-center justify-center shrink-0 opacity-60" aria-label="待辦完成狀態（唯讀）">
+                                    {% if care.state %}
+                                    <span class="material-symbols-outlined text-primary text-sm font-bold">check</span>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
                                 <div class="flex-1 min-w-0">
                                     <div class="flex items-center gap-2 min-w-0">
                                         <span class="text-sm font-bold text-primary shrink-0">{{ care.recordtime|localtime|date:'H:i' }}</span>
@@ -154,10 +174,11 @@
                                     <span class="text-[10px] text-on-surface-variant/70 mt-0.5 block"> {{ care.user.name }} 新增</span>
                                     {% endif %}
                                 </div>
+                                {% if can_edit_care %}
                                 <button type="button" onclick="window.location.href='{% url 'edit_care_reminder' %}?carerecord_id={{ care.carerecord_id }}&date={{ selected_date_iso }}'" class="shrink-0 w-6 h-6 rounded-md flex items-center justify-center cursor-pointer text-on-surface-variant/50 hover:text-primary hover:bg-primary/10 transition-colors" aria-label="編輯待辦清單">
                                     <span class="material-symbols-outlined text-base">edit</span>
                                 </button>
-                                <form method="post" action="{% url 'delete_care_reminder' %}" class="shrink-0" onsubmit="return confirm('確定要刪除這筆待辦清單嗎？');">
+                                <form method="post" action="{% url 'delete_care_reminder' %}" class="shrink-0 js-delete-care-form">
                                     {% csrf_token %}
                                     <input type="hidden" name="carerecord_id" value="{{ care.carerecord_id }}">
                                     <input type="hidden" name="selected_date" value="{{ selected_date_iso }}">
@@ -165,6 +186,7 @@
                                         <span class="material-symbols-outlined text-base">delete</span>
                                     </button>
                                 </form>
+                                {% endif %}
                             </div>
                             {% endfor %}
                         {% else %}
@@ -395,17 +417,28 @@
         </div>
     </div>
 
-        <!-- Floating Join Code Button -->
+        <!-- Floating Join Code Button：加入碼只顯示給個案擁有者，協助者不需要也不該看到 -->
+        {% if is_case_owner %}
         <div class="join">
             <span class="material-symbols-outlined text-base">vpn_key</span>
             <span class="font-bold text-[10px] tracking-wide">加入碼: {{ pregnancy_case.code|default:'尚未建立' }}</span>
         </div>
+        {% endif %}
 
 
 {% endblock %}
 {% block extra_js %}
 <script>
     document.addEventListener('DOMContentLoaded', () => {
+        // 刪除確認改用事件綁定，不放在 onsubmit 屬性裡
+        document.querySelectorAll('.js-delete-care-form').forEach((form) => {
+            form.addEventListener('submit', (event) => {
+                if (!window.confirm('確定要刪除這筆待辦清單嗎？')) {
+                    event.preventDefault();
+                }
+            });
+        });
+
         const pregnancyChartDataElement = document.getElementById('pregnancy-chart-data');
         const pregnancyChartSvg = document.getElementById('chart-svg');
         const pregnancyChartEmptyState = document.getElementById('chart-empty-state');

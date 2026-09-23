@@ -18,14 +18,28 @@
         return `${y}-${m}-${d}`;
     }
 
+    function daysInMonth(year, month) { // month: 1-12
+        return new Date(year, month, 0).getDate();
+    }
+
+    /**
+     * Naegele's rule：年 +1、月 −3、日 +7。
+     * 月份先位移再「夾」到該月最後一天，才會與後端 _calculate_expected_date 一致。
+     * 舊版直接 setMonth(-3) 會讓 5/31 溢位成 3/3（多算 3 天）。
+     */
     function dueDateFromLMP(ymd) {
         const lmp = parseLocalDate(ymd);
         if (!lmp) {
             return '';
         }
-        const due = new Date(lmp);
-        due.setFullYear(due.getFullYear() + 1);
-        due.setMonth(due.getMonth() - 3);
+        let year = lmp.getFullYear() + 1;
+        let month = lmp.getMonth() + 1 - 3; // 1-12
+        if (month <= 0) {
+            month += 12;
+            year -= 1;
+        }
+        const day = Math.min(lmp.getDate(), daysInMonth(year, month));
+        const due = new Date(year, month - 1, day);
         due.setDate(due.getDate() + 7);
         return formatLocalDate(due);
     }
@@ -38,6 +52,10 @@
         function syncExpectedDate() {
             const lmp = menstruationInput.value;
             if (!lmp) {
+                return;
+            }
+            // 只在預產期還沒有值時自動帶入，不覆寫使用者（或醫生）已填的預產期
+            if (expecteddateInput.value) {
                 return;
             }
             const calculated = dueDateFromLMP(lmp);

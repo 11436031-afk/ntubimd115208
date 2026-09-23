@@ -15,6 +15,18 @@
         </a>
     </div>
 
+    {% if permission_notices %}
+    <!-- 權限說明：協助者沒有被開放的項目已在後端過濾掉，這裡說明原因 -->
+    <div class="mb-4 space-y-2">
+        {% for notice in permission_notices %}
+        <p class="flex items-start gap-2 text-xs font-bold text-[#65518a] bg-[#EDE5F5] border border-[#E8E0EF] px-4 py-3 rounded-2xl" role="status">
+            <span class="material-symbols-outlined text-[16px] mt-px">lock</span>
+            <span>{{ notice }}</span>
+        </p>
+        {% endfor %}
+    </div>
+    {% endif %}
+
     <!-- ========================================== -->
     <!-- 📖 頁面 Header & 右上 Icon -->
     <!-- ========================================== -->
@@ -139,20 +151,36 @@
                 <span>{{ weight_title }}</span>
             </h3>
 
-            <!-- SVG 精美折線圖 -->
+            <!-- SVG 折線圖：座標由 view 依真實體重數值算出（weight_polyline / p.x / p.y），
+                 不再使用任何寫死的 path，資料不足時顯示空狀態 -->
+            {% if has_weight_chart %}
             <div class="h-28 w-full relative pt-2">
-                <svg class="w-full h-full overflow-visible" viewBox="0 0 200 80">
+                <svg class="w-full h-full overflow-visible" viewBox="0 0 200 80" role="img" aria-label="{{ weight_title }}">
                     <line x1="0" y1="20" x2="200" y2="20" stroke="#f1f1ee" stroke-dasharray="3 3" />
                     <line x1="0" y1="50" x2="200" y2="50" stroke="#f1f1ee" stroke-dasharray="3 3" />
 
-                    <path d="M 10 70 Q 50 60, 90 45 T 150 25 T 190 15" fill="none" stroke="#8064A2" stroke-width="3" stroke-linecap="round" />
-                    
+                    <polyline points="{{ weight_polyline }}" fill="none" stroke="#8064A2" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+
                     {% for p in weight_points %}
-                    <circle cx="{% if forloop.index == 1 %}10{% elif forloop.index == 2 %}55{% elif forloop.index == 3 %}100{% elif forloop.index == 4 %}145{% else %}190{% endif %}" cy="{% if forloop.index == 1 %}70{% elif forloop.index == 2 %}58{% elif forloop.index == 3 %}42{% elif forloop.index == 4 %}26{% else %}15{% endif %}" r="3.5" fill="#8064A2" />
-                    <text x="{% if forloop.index == 1 %}10{% elif forloop.index == 2 %}55{% elif forloop.index == 3 %}100{% elif forloop.index == 4 %}145{% else %}190{% endif %}" y="79" font-size="8" fill="#81758A" text-anchor="middle">{{ p.week }}</text>
+                    <circle cx="{{ p.x }}" cy="{{ p.y }}" r="3.5" fill="#8064A2">
+                        <title>{{ p.week }}：{{ p.val }}</title>
+                    </circle>
+                    <text x="{{ p.x }}" y="79" font-size="8" fill="#81758A" text-anchor="middle">{{ p.week }}</text>
                     {% endfor %}
                 </svg>
             </div>
+            <div class="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-[10px] text-[#81758A] font-medium">
+                {% for p in weight_points %}
+                <span><span class="font-bold text-[#4A4052]">{{ p.week }}</span> {{ p.val }}</span>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="h-28 w-full flex flex-col items-center justify-center text-center gap-1 bg-[#FAF8FC] rounded-2xl border border-dashed border-[#E8E0EF]">
+                <span class="material-symbols-outlined text-[#8064A2]">monitoring</span>
+                <p class="text-[11px] font-bold text-[#4A4052]">資料不足，尚無法繪製趨勢圖</p>
+                <p class="text-[10px] text-[#81758A]">{{ weight_unavailable_reason }}</p>
+            </div>
+            {% endif %}
         </div>
 
         <!-- 右邊：心情記錄總覽 SVG 甜甜圈圓餅圖 -->
@@ -161,14 +189,17 @@
                 <span>🍩 心情記錄總覽</span>
             </h3>
 
+            {% if has_mood %}
             <div class="flex items-center justify-between gap-2 pt-1">
-                <!-- SVG Donut Chart -->
+                <!-- SVG Donut Chart：每一段的 dasharray / dashoffset 都由 view 依真實比例算出 -->
                 <div class="w-20 h-20 relative shrink-0">
-                    <svg viewBox="0 0 36 36" class="w-full h-full transform -rotate-90">
+                    <svg viewBox="0 0 36 36" class="w-full h-full transform -rotate-90" role="img" aria-label="心情記錄總覽">
                         <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#EDE5F5" stroke-width="4" />
-                        <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#8064A2" stroke-width="4" stroke-dasharray="45, 100" />
-                        <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#b2e4fb" stroke-width="4" stroke-dasharray="30, 100" stroke-dashoffset="-45" />
-                        <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#f8bbd0" stroke-width="4" stroke-dasharray="15, 100" stroke-dashoffset="-75" />
+                        {% for m in mood_distribution %}
+                        <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                              fill="none" stroke="{{ m.color }}" stroke-width="4"
+                              stroke-dasharray="{{ m.dash_array }}" stroke-dashoffset="{{ m.dash_offset }}" />
+                        {% endfor %}
                     </svg>
                     <div class="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-[#8064A2]">
                         {{ mood_distribution.0.name }} {{ mood_distribution.0.pct }}%
@@ -180,11 +211,18 @@
                     {% for m in mood_distribution %}
                     <div class="flex items-center justify-between">
                         <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full" style="background-color: {{ m.color }};"></span>{{ m.name }}</span>
-                        <span class="font-bold">{{ m.pct }}%</span>
+                        <span class="font-bold">{{ m.pct }}%（{{ m.count }} 次）</span>
                     </div>
                     {% endfor %}
                 </div>
             </div>
+            {% else %}
+            <div class="h-28 w-full flex flex-col items-center justify-center text-center gap-1 bg-[#FAF8FC] rounded-2xl border border-dashed border-[#E8E0EF]">
+                <span class="material-symbols-outlined text-[#8064A2]">sentiment_neutral</span>
+                <p class="text-[11px] font-bold text-[#4A4052]">還沒有心情紀錄</p>
+                <p class="text-[10px] text-[#81758A]">{% if can_view_mom %}在孕期紀錄中選擇心情後，這裡就會顯示統計。{% else %}養育者未開放孕期紀錄的檢視權限。{% endif %}</p>
+            </div>
+            {% endif %}
         </div>
     </section>
 
@@ -196,7 +234,8 @@
             <span>⭐ 重要里程碑</span>
         </h3>
 
-        <!-- 水平滑動時間線 -->
+        <!-- 水平滑動時間線：只顯示真實達成的里程碑（BabyStatus × BabyGrowthMap） -->
+        {% if has_milestones %}
         <div class="overflow-x-auto no-scrollbar pb-2">
             <div class="flex items-center gap-3 min-w-max">
                 {% for m in milestones %}
@@ -204,6 +243,9 @@
                     <span class="text-xl mb-1">{{ m.icon }}</span>
                     <span class="text-[11px] font-bold text-[#4A4052] leading-tight mb-1">{{ m.title }}</span>
                     <span class="text-[10px] font-bold text-[#8064A2] bg-[#EDE5F5] px-2 py-0.5 rounded-full">{{ m.week }}</span>
+                    {% if m.achieved_date %}
+                    <span class="text-[10px] text-[#81758A] mt-1">{{ m.achieved_date }} 達成</span>
+                    {% endif %}
                 </div>
                 {% if not forloop.last %}
                 <span class="material-symbols-outlined text-[#8064A2] text-sm">arrow_forward</span>
@@ -211,6 +253,17 @@
                 {% endfor %}
             </div>
         </div>
+        {% else %}
+        <div class="py-6 flex flex-col items-center justify-center text-center gap-1 bg-[#FAF8FC] rounded-2xl border border-dashed border-[#E8E0EF]">
+            <span class="material-symbols-outlined text-[#8064A2]">flag</span>
+            <p class="text-[11px] font-bold text-[#4A4052]">目前沒有已達成的里程碑紀錄</p>
+            <p class="text-[10px] text-[#81758A]">
+                {% if not can_view_baby %}養育者未開放嬰幼兒紀錄的檢視權限。
+                {% elif mode == 'baby' %}在新增成長紀錄時勾選里程碑，這裡就會顯示真實達成紀錄。
+                {% else %}目前系統尚未提供孕期里程碑的紀錄功能。{% endif %}
+            </p>
+        </div>
+        {% endif %}
     </section>
 
     <!-- ========================================== -->
@@ -221,9 +274,15 @@
             <h3 class="text-xs font-bold text-[#4A4052] font-['Plus_Jakarta_Sans'] mb-1.5">
                 {{ mom_letter_title }}
             </h3>
+            {% if mom_letter %}
             <p class="text-xs text-[#4A4052] font-medium leading-relaxed font-['Be_Vietnam_Pro'] italic">
                 「{{ mom_letter }}」
             </p>
+            {% else %}
+            <p class="text-xs text-[#81758A] font-medium leading-relaxed font-['Be_Vietnam_Pro']">
+                {% if can_view_mom %}還沒有任何孕期手寫筆記，寫下第一則紀錄後就會顯示在這裡。{% else %}養育者未開放孕期紀錄的檢視權限。{% endif %}
+            </p>
+            {% endif %}
         </div>
         <div class="w-16 h-16 rounded-2xl bg-[#EDE5F5] shrink-0 flex items-center justify-center text-2xl shadow-2xs">
             🌸

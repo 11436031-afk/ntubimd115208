@@ -8,14 +8,21 @@ from django.db.models import Q
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
 
-from core.models import BabyInformation, FamilyMember
+from core.models import BabyInformation
 from views.session_utils import get_current_user_profile
-from views import baby_utils
+from views.health_safety import (
+    MEDICAL_DISCLAIMER,
+    check_rate_limit,
+    prepend_emergency_notice,
+    validate_question_length,
+)
 
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_ASSISTANT_WEBHOOK_URL = "https://kathy1023.app.n8n.cloud/webhook/CoLoGrowth"
+
+RATE_LIMIT_SESSION_KEY = "assistant_rate_limit_timestamps"
 
 
 def _get_webhook_url():
@@ -159,7 +166,7 @@ def _post_to_n8n(question, user_id):
         logger.warning("Assistant n8n HTTP error %s", exc.code)
         if exc.code == 404:
             return None, (
-                "找不到成長助理的 n8n Webhook（CoLoGrowth）。"
+                "找不到成長助手的 n8n Webhook（CoLoGrowth）。"
                 "請在 n8n 開啟 CoLoGrowth workflow 並確認 Webhook 已啟用。"
             )
         return None, f"n8n Webhook 回應失敗：{exc.code}"
@@ -168,7 +175,16 @@ def _post_to_n8n(question, user_id):
         return None, f"無法連線到 n8n：{exc.reason}"
     except Exception:
         logger.exception("Unexpected error while calling assistant n8n webhook")
-        return None, "呼叫成長評估助理時發生錯誤，請稍後再試。"
+        return None, "呼叫成長評估助手時發生錯誤，請稍後再試。"
+
+
+def _get_born_babies(current_user):
+    """登入者可以存取（養育者或協助者）且已出生的寶寶。"""
+    return BabyInformation.objects.filter(
+        Q(pregnancycase__user=current_user)
+        | Q(pregnancycase__familymember__user=current_user),
+        birthdaytime__isnull=False,
+    ).select_related("pregnancycase").distinct().order_by("birthdaytime", "baby_id")
 
 
 def assistant(request):
@@ -182,40 +198,57 @@ def assistant(request):
         question = request.POST.get("question", "").strip()
         if not question:
             return JsonResponse({"ok": False, "error": "請輸入問題。"}, status=400)
-        answer, error_message = _post_to_n8n(question, current_user.user_id)
+
+        length_error = validate_question_length(question)
+        if length_error:
+            return JsonResponse({"ok": False, "error": length_error}, status=400)
+
+        rate_error = check_rate_limit(request, RATE_LIMIT_SESSION_KEY)
+        if rate_error:
+            logger.info("Assistant rate limit hit for user %s", current_user.user_id)
+            return JsonResponse({"ok": False, "error": rate_error}, status=429)
+
+        # 寶寶名稱一律由後端組出來，前端只能指定 baby_id，且必須屬於登入者
+        raw_baby_id = request.POST.get("baby_id", "").strip()
+        if not raw_baby_id:
+            return JsonResponse({"ok": False, "error": "請先選擇寶寶。"}, status=400)
+
+        try:
+            baby_id = int(raw_baby_id)
+        except (TypeError, ValueError):
+            return JsonResponse({"ok": False, "error": "寶寶資料有誤，請重新選擇。"}, status=400)
+
+        baby = _get_born_babies(current_user).filter(baby_id=baby_id).first()
+        if not baby:
+            logger.warning(
+                "User %s requested assistant for baby %s that is not theirs",
+                current_user.user_id,
+                baby_id,
+            )
+            return JsonResponse({"ok": False, "error": "找不到這個寶寶，或它不屬於你。"}, status=403)
+
+        # n8n 目前依賴的欄位不變，只是問題前面的寶寶名稱改由後端串
+        full_question = f"{baby.name}{question}"
+
+        answer, error_message = _post_to_n8n(full_question, current_user.user_id)
         if error_message:
             return JsonResponse({"ok": False, "error": error_message}, status=502)
+
+        answer, red_flags = prepend_emergency_notice(answer, question)
+        if red_flags:
+            logger.info("Assistant red flag keywords matched: %s", red_flags)
+
         return JsonResponse({"ok": True, "answer": answer})
 
-    # 預載協助者記錄（以 pregnancycase_id 為 key），用於逐 case 過濾權限
-    member_perms = {
-        fm.pregnancycase_id: fm
-        for fm in FamilyMember.objects.filter(user=current_user)
-    }
-
-    born_babies = BabyInformation.objects.filter(
-        Q(pregnancycase__user=current_user)
-        | Q(pregnancycase__familymember__user=current_user),
-        birthdaytime__isnull=False,
-    ).select_related("pregnancycase").distinct().order_by("birthdaytime", "baby_id")
-
-    owners = []
-    helpers = []
-    for baby in born_babies:
-        is_owner = baby.pregnancycase.user_id == current_user.user_id
-        if is_owner:
-            owners.append({"baby": baby, "role": "養育者"})
-        else:
-            member = member_perms.get(baby.pregnancycase_id)
-            if baby_utils.get_permission(member, "assistant", default="view") != "off":
-                helpers.append({"baby": baby, "role": "協助者"})
-
-    # 養育者在前、協助者在後，各自依出生日期（birthdaytime）升序排列
-    owners.sort(key=lambda x: x["baby"].birthdaytime)
-    helpers.sort(key=lambda x: x["baby"].birthdaytime)
-    assistant_babies = owners + helpers
-
-    return render(request, "AI/assistant.html", {
+    assistant_babies = [
+        {
+            "baby": baby,
+            "role": "養育者" if baby.pregnancycase.user_id == current_user.user_id else "協助者",
+        }
+        for baby in _get_born_babies(current_user)
+    ]
+    return render(request, "base/assistant.html", {
         "current_user": current_user,
         "assistant_babies": assistant_babies,
+        "medical_disclaimer": MEDICAL_DISCLAIMER,
     })

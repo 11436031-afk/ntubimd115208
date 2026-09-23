@@ -15,6 +15,18 @@
         </a>
     </div>
 
+    {% if permission_notices %}
+    <!-- 權限說明：協助者沒有被開放的項目已在後端過濾掉，這裡說明原因 -->
+    <div class="mb-4 space-y-2">
+        {% for notice in permission_notices %}
+        <p class="flex items-start gap-2 text-xs font-bold text-[#65518a] bg-[#EDE5F5] border border-[#E8E0EF] px-4 py-3 rounded-2xl" role="status">
+            <span class="material-symbols-outlined text-[16px] mt-px">lock</span>
+            <span>{{ notice }}</span>
+        </p>
+        {% endfor %}
+    </div>
+    {% endif %}
+
     <!-- ========================================== -->
     <!-- 📖 頁面 Header & 右上 Icon -->
     <!-- ========================================== -->

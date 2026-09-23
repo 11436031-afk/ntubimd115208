@@ -14,7 +14,19 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!monthPickerModal || !customDatePickerBtn || !monthPickerContent || !monthPickerGrid || !monthPickerYearDisplay || !prevYearBtn || !nextYearBtn || !monthPickerBackdrop) {
         return;
     }
- 
+
+    // 切換月份／日期時必須帶上目前選到的胎數或寶寶，
+    // 否則跳轉後 active selection 會被 fallback 蓋掉，畫面跳回別的個案。
+    function buildDateUrl(dateIso) {
+        const current = new URLSearchParams(window.location.search);
+        const params = new URLSearchParams({ date: dateIso });
+        const caseId = current.get('case_id');
+        const babyId = current.get('baby_id');
+        if (caseId) params.set('case_id', caseId);
+        if (babyId) params.set('baby_id', babyId);
+        return `?${params.toString()}`;
+    }
+
     let currentSelectedYear = new Date().getFullYear();
     let currentSelectedMonth = new Date().getMonth() + 1;
     const initialText = (document.getElementById('custom-date-picker-text')||{}).innerText || '';
@@ -49,7 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
             button.onclick = () => {
                 // navigate to selected month (first day)
                 const target = `${tempYear}-${String(month).padStart(2,'0')}-01`;
-                window.location.href = `?date=${target}`;
+                window.location.href = buildDateUrl(target);
             };
  
             monthPickerGrid.appendChild(button);
@@ -102,7 +114,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         const target = `${safeYear}-${String(safeMonth).padStart(2,'0')}-01`;
-        window.location.href = `?date=${target}`;
+        window.location.href = buildDateUrl(target);
     }
  
     function shiftMonth(delta) {
@@ -158,7 +170,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const y = today.getFullYear();
             const m = String(today.getMonth() + 1).padStart(2, '0');
             const d = String(today.getDate()).padStart(2, '0');
-            window.location.href = `?date=${y}-${m}-${d}`;
+            window.location.href = buildDateUrl(`${y}-${m}-${d}`);
         });
     }
  
