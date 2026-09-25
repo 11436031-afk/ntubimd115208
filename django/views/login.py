@@ -4,12 +4,13 @@ import logging
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth import login as django_login
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Max
 from django.dispatch import receiver
 from django.http import HttpResponseRedirect, JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
+from django.utils.crypto import constant_time_compare
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
@@ -40,6 +41,35 @@ def _safe_line_login_url():
     return '/accounts/line/login/'
 
 
+def _abort_social_login(redirect_to):
+    """中止 allauth 的社群登入流程並導回指定網址。
+
+    這裡是 signal receiver，直接 raise 一般例外會讓 allauth 的 callback 變成 500，
+    而 allauth 會在 `complete_social_login()` 外層攔截 ImmediateHttpResponse，
+    所以用它把流程收掉。若 allauth 版本沒有這個例外類別就安靜返回——
+    使用者的 session 沒有 user_id，仍會被 LoginRequiredMessage middleware 導回登入頁。
+    """
+    try:
+        from allauth.exceptions import ImmediateHttpResponse
+    except Exception:
+        logger.warning('allauth 沒有 ImmediateHttpResponse，社群登入失敗只能交給 middleware 導回登入頁')
+        return
+    raise ImmediateHttpResponse(redirect(redirect_to))
+
+
+def _user_profile_by_email(email):
+    """用 email 找帳號。
+
+    email 目前沒有唯一鍵，資料庫裡可能同時存在多筆相同 email；
+    一律 order_by('user_id') 讓「同一個 email 永遠對應到同一筆帳號」，
+    避免同一個人每次登入被分到不同帳號、看到別人的資料。
+    """
+    email = (email or '').strip()
+    if not email:
+        return None
+    return UserProfile.objects.filter(email__iexact=email).order_by('user_id').first()
+
+
 def _resolve_user_profile_for_social_binding(request, social_account, provider, extra_data):
     """Resolve the correct UserProfile for a connect flow even when session state is missing or stale."""
     user_id = request.session.get('user_id')
@@ -52,19 +82,19 @@ def _resolve_user_profile_for_social_binding(request, social_account, provider, 
     if getattr(auth_user, 'is_authenticated', False):
         auth_email = getattr(auth_user, 'email', '') or request.session.get('user_email', '')
         if auth_email:
-            user_profile = UserProfile.objects.filter(email=auth_email).first()
+            user_profile = _user_profile_by_email(auth_email)
             if user_profile:
                 return user_profile
 
     google_email = extra_data.get('email', '') if provider == 'google' else ''
     if google_email:
-        user_profile = UserProfile.objects.filter(email=google_email).first()
+        user_profile = _user_profile_by_email(google_email)
         if user_profile:
             return user_profile
 
     line_user_id = (extra_data.get('sub') or social_account.uid or '').strip()
     if line_user_id:
-        user_profile = UserProfile.objects.filter(line_id=line_user_id).first()
+        user_profile = UserProfile.objects.filter(line_id=line_user_id).order_by('user_id').first()
         if user_profile:
             return user_profile
 
@@ -108,6 +138,40 @@ def _next_user_id():
     max_user_id = UserProfile.objects.aggregate(max_user_id=Max('user_id')).get('max_user_id')
     return (max_user_id or 0) + 1
 
+
+# user_id 是手動配號（Max + 1），兩個人同時註冊會拿到同一個號碼而撞主鍵，
+# 所以插入失敗時重新算號並重試幾次。
+_USER_ID_RETRY_LIMIT = 5
+
+
+def _create_user_profile(name, email, line_id='', avatar=''):
+    """建立新的 UserProfile，並處理手動配號造成的主鍵/唯一鍵衝突。
+
+    avatar 欄位是 unique=True，沒有頭像時不能寫空字串（第二個人就會撞唯一鍵），
+    改寫入每人專屬的佔位值；模板請用 `user.avatar_url` 顯示。
+    """
+    last_error = None
+    for attempt in range(_USER_ID_RETRY_LIMIT):
+        user_id = _next_user_id()
+        # 第一次用第三方給的頭像；若插入失敗（有可能是頭像網址撞唯一鍵），
+        # 之後的重試一律退回佔位值，至少讓帳號能順利建立。
+        candidate_avatar = (avatar or '') if attempt == 0 else ''
+        try:
+            with transaction.atomic():
+                user_profile = UserProfile(
+                    user_id=user_id,
+                    line_id=line_id or '',
+                    name=name,
+                    avatar=candidate_avatar or UserProfile.placeholder_avatar_for(user_id),
+                    email=email,
+                )
+                user_profile.save(force_insert=True)
+            return user_profile
+        except IntegrityError as exc:
+            last_error = exc
+            logger.warning('建立 UserProfile 失敗（user_id=%s，第 %s 次），重試中：%s', user_id, attempt + 1, exc)
+    raise last_error
+
 @receiver(user_logged_in)
 def handle_allauth_login_success(request, user, **kwargs):
     social_account = SocialAccount.objects.filter(user=user).first()
@@ -142,52 +206,67 @@ def handle_allauth_login_success(request, user, **kwargs):
     display_name = (raw_name or email.split('@')[0])[:50]
 
     try:
-        with transaction.atomic():
-            user_profile = UserProfile.objects.filter(email=email).first()
-            if not user_profile and is_line:
-                user_profile = UserProfile.objects.filter(line_id=line_user_id).first()
+        user_profile = _user_profile_by_email(email)
+        if not user_profile and is_line and line_user_id:
+            user_profile = UserProfile.objects.filter(line_id=line_user_id).order_by('user_id').first()
 
-            if not user_profile:
-                user_profile = UserProfile(
-                    user_id=_next_user_id(),
-                    line_id=line_user_id if is_line else '',
-                    name=display_name,
-                    avatar=picture or '',
-                    email=email,
-                )
-                user_profile.save(force_insert=True)
-            else:
-                # 已存在的 UserProfile：不覆寫 name/avatar/email 等既有資料，
-                # 只有 LINE 登入且 line_id 欄位目前是空的情況下才補寫入，
-                # 讓「是否已綁定 LINE」的狀態能正確判斷。
-                # （Google 這邊因為是直接用 email 完全比對找到帳號，比對到時
-                # email 本來就已經等於這次登入的 email，不需要再補寫。）
-                if is_line and line_user_id and not user_profile.line_id:
+        if not user_profile:
+            user_profile = _create_user_profile(
+                name=display_name,
+                email=email,
+                line_id=line_user_id if is_line else '',
+                avatar=picture or '',
+            )
+        else:
+            # 已存在的 UserProfile：不覆寫 name/avatar/email 等既有資料，
+            # 只有 LINE 登入且 line_id 欄位目前是空的情況下才補寫入，
+            # 讓「是否已綁定 LINE」的狀態能正確判斷。
+            # （Google 這邊因為是直接用 email 完全比對找到帳號，比對到時
+            # email 本來就已經等於這次登入的 email，不需要再補寫。）
+            if is_line and line_user_id and not user_profile.line_id:
+                with transaction.atomic():
                     user_profile.line_id = line_user_id
                     user_profile.save(update_fields=['line_id'])
 
         request.session['user_id'] = str(user_profile.user_id)
         request.session['user_email'] = user_profile.email
         request.session['user_name'] = user_profile.name
-        request.session['user_avatar'] = user_profile.avatar or ''
+        request.session['user_avatar'] = user_profile.avatar_url
         request.session.pop('active_case_id', None)
         request.session.pop('active_baby_id', None)
         request.session.modified = True
 
     except Exception as e:
         logger.error(f"社交登入同步至 UserProfile 失敗，原因: {str(e)}", exc_info=True)
-        print(f"======= 🔴 LINE/Google 登入同步失敗: {str(e)} =======")
-        raise e
+        # 不可以裸 raise：這裡是 allauth 登入流程中的 signal receiver，
+        # 丟出例外會直接變成 500 白畫面。改成中止登入並導回登入頁顯示錯誤。
+        request.session.pop('user_id', None)
+        request.session.pop('user_email', None)
+        request.session.modified = True
+        _abort_social_login(reverse('login') + '?notice=social_sync_failed')
 
 # ==========================================
 # 舊有的原生 Google 登入 API
 # ==========================================
+# 這條路由是 Google Identity Services（GSI）以 `ux_mode: 'redirect'` 跨站 POST 進來的，
+# 帶不到 Django 的 csrfmiddlewaretoken，所以必須保留 csrf_exempt；
+# 改用 Google 官方規定的 double-submit cookie（g_csrf_token）來擋 CSRF。
 @csrf_exempt
 def google_auth_login(request):
     if request.method != 'POST':
         return JsonResponse({'status': 'error', 'message': 'Method not allowed'}, status=405)
 
     is_json_request = (request.content_type or '').startswith('application/json')
+
+    # --- CSRF：比對 GSI 的 g_csrf_token（cookie 與表單欄位都要有且相等） ---
+    cookie_csrf = request.COOKIES.get('g_csrf_token', '')
+    body_csrf = request.POST.get('g_csrf_token', '')
+    if not cookie_csrf or not body_csrf or not constant_time_compare(cookie_csrf, body_csrf):
+        logger.warning('GSI 登入被拒：g_csrf_token 缺少或不相符')
+        return JsonResponse(
+            {'status': 'error', 'message': '登入驗證失敗，請回到登入頁重新登入。'},
+            status=403,
+        )
     if is_json_request:
         try:
             payload = json.loads(request.body.decode('utf-8') or '{}')
@@ -213,28 +292,40 @@ def google_auth_login(request):
     if not email:
         return JsonResponse({'status': 'error', 'message': 'Email not found in token'}, status=400)
 
+    # 這個系統是用 email 認人的，未經 Google 驗證的 email 等於可以冒用他人帳號，一律拒絕。
+    if idinfo.get('email_verified') is not True:
+        logger.warning('GSI 登入被拒：email_verified 不為 True（email=%s）', email)
+        return JsonResponse(
+            {'status': 'error', 'message': '此 Google 帳號的電子郵件尚未通過驗證，無法登入。'},
+            status=401,
+        )
+
     name = idinfo.get('name') or email
     picture = idinfo.get('picture', '')
     name = (name or email.split('@')[0])[:50]
 
-    with transaction.atomic():
+    try:
         # find existing user by email or by line id
-        user_profile = UserProfile.objects.filter(email=email).first()
+        user_profile = _user_profile_by_email(email)
         if not user_profile:
-            user_profile = UserProfile.objects.filter(line_id=email).first()
+            user_profile = UserProfile.objects.filter(line_id=email).order_by('user_id').first()
 
         if not user_profile:
             # unmanaged table: assign the next numeric user_id manually
-            user_profile = UserProfile(
-                user_id=_next_user_id(),
-                line_id='',
+            user_profile = _create_user_profile(
                 name=name,
-                avatar=picture or '',
                 email=email,
+                line_id='',
+                avatar=picture or '',
             )
-            user_profile.save(force_insert=True)
         # 已存在的 UserProfile：不再覆寫 name/line_id/avatar 等欄位，
         # 僅在首次建立帳號時才會寫入這些從 Google 帳號取得的資訊。
+    except Exception:
+        logger.exception('Google 登入建立 UserProfile 失敗（email=%s）', email)
+        return JsonResponse(
+            {'status': 'error', 'message': '登入失敗，請稍後再試。'},
+            status=500,
+        )
 
     # 🔑 補上真正的 Django auth 登入，讓 request.user 有值。
     # 沒有這一步，allauth 的「帳號綁定 (process=connect)」流程會找不到目前登入的使用者，
@@ -244,7 +335,7 @@ def google_auth_login(request):
     request.session['user_id'] = str(user_profile.user_id)
     request.session['user_email'] = user_profile.email
     request.session['user_name'] = user_profile.name
-    request.session['user_avatar'] = user_profile.avatar or ''
+    request.session['user_avatar'] = user_profile.avatar_url
     request.session.pop('active_case_id', None)
     request.session.pop('active_baby_id', None)
     request.session.modified = True
@@ -292,9 +383,20 @@ def handle_social_account_connected(request, sociallogin, **kwargs):
 
     try:
         with transaction.atomic():
-            if is_google and not user_profile.google_linked:
-                google_email = extra_data.get('email', '')
-                if google_email:
+            if is_google:
+                google_email = (extra_data.get('email', '') or '').strip()
+                # 只有在這筆帳號目前沒有真正的 email（例如 LINE 登入產生的佔位信箱）
+                # 時才補寫 Google 的 email，而且不能撞到別人的 email。
+                # 直接覆寫既有 email 會讓下次用 email 認人時登入到別人的帳號。
+                can_fill_email = (
+                    google_email
+                    and (not user_profile.email or user_profile.is_line_placeholder_email)
+                    and not UserProfile.objects
+                        .filter(email__iexact=google_email)
+                        .exclude(user_id=user_profile.user_id)
+                        .exists()
+                )
+                if can_fill_email:
                     user_profile.email = google_email
                     user_profile.save(update_fields=['email'])
             elif is_line and not user_profile.line_id:
@@ -306,7 +408,7 @@ def handle_social_account_connected(request, sociallogin, **kwargs):
             request.session['user_id'] = str(user_profile.user_id)
             request.session['user_email'] = user_profile.email
             request.session['user_name'] = user_profile.name
-            request.session['user_avatar'] = user_profile.avatar or ''
+            request.session['user_avatar'] = user_profile.avatar_url
             request.session.modified = True
     except Exception as e:
         logger.error(f"綁定社群帳號寫回 UserProfile 失敗，原因: {str(e)}", exc_info=True)

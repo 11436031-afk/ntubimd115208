@@ -112,12 +112,23 @@ def edit_baby_information(request):
         return redirect('login')
 
     # 從 URL 參數強制切換 active_baby（供 pregnancycase 頁面的登記出生按鈕使用）
+    # 安全性：必須先確認這位寶寶確實屬於目前使用者可存取的個案，
+    # 否則任何人都能用 ?baby_id= 把別人的寶寶寫進自己的 session
+    #（判斷條件比照 pregnancycase.sync_active_selection_from_request）
     baby_id_param = request.GET.get('baby_id')
     if baby_id_param:
         try:
-            baby_obj = BabyInformation.objects.filter(baby_id=int(baby_id_param)).first()
-            if baby_obj:
+            baby_obj = BabyInformation.objects.select_related('pregnancycase').filter(
+                baby_id=int(baby_id_param)
+            ).first()
+            if baby_obj and baby_obj.pregnancycase_id and (
+                baby_obj.pregnancycase.user_id == user.user_id
+                or FamilyMember.objects.filter(
+                    pregnancycase=baby_obj.pregnancycase, user=user
+                ).exists()
+            ):
                 request.session['active_baby_id'] = baby_obj.baby_id
+                request.session['active_case_id'] = baby_obj.pregnancycase_id
                 request.session.modified = True
         except (ValueError, TypeError):
             pass
@@ -132,20 +143,6 @@ def edit_baby_information(request):
             return redirect('babyinformation')
 
     if request.method == 'POST':
-        # 名稱永遠可改
-        name = (request.POST.get('baby_name') or '').strip()
-        if name:
-            active_baby.name = name
-
-        gender = (request.POST.get('gender') or '').strip()
-        if gender not in {'1', '2'}:
-            return render(request, 'baby/edit_babyinformation.html', {
-                'baby': active_baby,
-                'gender_choices': BabyInformation.GENDER_CHOICES,
-                'error': '請選擇性別',
-            })
-        active_baby.gender = gender
-
         # 逐欄位鎖定（有值 = 已填過，不再覆蓋）
         dt_locked = active_baby.birthdaytime is not None
         wt_locked = active_baby.baby_weight is not None
@@ -155,23 +152,34 @@ def edit_baby_information(request):
         pm_locked = bool(active_baby.production_method)
 
         lmp = active_baby.pregnancycase.menstruation if active_baby.pregnancycase else None
-        join_code = getattr(active_baby.pregnancycase, 'code', '') if active_baby.pregnancycase_id else ''
-        lmp_str = lmp.strftime('%Y-%m-%d') if lmp else ''
 
         def _err(msg):
-            return render(request, 'baby/edit_babyinformation.html', {
-                'baby': active_baby,
+            """驗證失敗：用與 GET 相同的完整 context 回到表單，並用 form_data 回填使用者輸入。
+            （舊版少傳 locks / join_code / gender_choices，會讓鎖定欄位與性別選單整個消失）"""
+            context = _build_edit_context(active_baby)
+            context.update({
                 'error': msg,
-                'birthdaytime_value': request.POST.get('birthdaytime', ''),
-                'join_code': join_code,
-                'lmp_date_value': lmp_str,
-                'birth_weeks_value': '',
+                'form_data': request.POST,
+                'birthdaytime_value': request.POST.get('birthdaytime', '') or context['birthdaytime_value'],
+                # 鎖定狀態一律用「進入本次 POST 前」的值：
+                # 中途已寫進記憶體但尚未 save 的欄位不算已鎖定
                 'locks': {
                     'birthdaytime': dt_locked, 'baby_weight': wt_locked,
                     'baby_height': ht_locked, 'babyheadcircumference': hc_locked,
                     'chestcircumference': cc_locked, 'production_method': pm_locked,
                 },
             })
+            return render(request, 'baby/edit_babyinformation.html', context)
+
+        # 名稱永遠可改
+        name = (request.POST.get('baby_name') or '').strip()
+        if name:
+            active_baby.name = name
+
+        gender = (request.POST.get('gender') or '').strip()
+        if gender not in {'1', '2'}:
+            return _err('請選擇性別')
+        active_baby.gender = gender
 
         # 出生時間
         if not dt_locked:
@@ -210,25 +218,32 @@ def edit_baby_information(request):
         return redirect('babyinformation')
 
     # ── GET 請求 ──────────────────────────────────────────────────────
+    return render(request, 'baby/edit_babyinformation.html', _build_edit_context(active_baby))
+
+
+def _build_edit_context(active_baby):
+    """編輯嬰幼兒資料頁的完整 context（GET 與所有驗證失敗路徑共用）。"""
+    case = active_baby.pregnancycase if active_baby.pregnancycase_id else None
+
     lmp_date_value = ''
     birth_weeks_value = ''
     due_date_value = ''
-    if active_baby.pregnancycase and active_baby.pregnancycase.menstruation:
-        lmp = active_baby.pregnancycase.menstruation
-        lmp_date_value = lmp.strftime('%Y-%m-%d')
-    if active_baby.pregnancycase and active_baby.pregnancycase.expecteddate:
-        due_date_value = active_baby.pregnancycase.expecteddate.strftime('%Y-%m-%d')
-    if active_baby.birthdaytime and active_baby.pregnancycase and active_baby.pregnancycase.menstruation:
+    if case and case.menstruation:
+        lmp_date_value = case.menstruation.strftime('%Y-%m-%d')
+    if case and case.expecteddate:
+        due_date_value = case.expecteddate.strftime('%Y-%m-%d')
+    if active_baby.birthdaytime and case and case.menstruation:
         birth_weeks_value = baby_utils.get_birth_week(active_baby) or ''
 
-    birthdaytime_value = active_baby.birthdaytime.strftime('%Y-%m-%dT%H:%M') if active_baby.birthdaytime else ''
-    join_code = getattr(active_baby.pregnancycase, 'code', '') if active_baby.pregnancycase_id else ''
+    birthdaytime_value = (
+        active_baby.birthdaytime.strftime('%Y-%m-%dT%H:%M') if active_baby.birthdaytime else ''
+    )
 
-    return render(request, 'baby/edit_babyinformation.html', {
+    return {
         'baby': active_baby,
         'gender_choices': BabyInformation.GENDER_CHOICES,
         'birthdaytime_value': birthdaytime_value,
-        'join_code': join_code,
+        'join_code': getattr(case, 'code', '') if case else '',
         'lmp_date_value': lmp_date_value,
         'due_date_value': due_date_value,
         'birth_weeks_value': birth_weeks_value,
@@ -240,4 +255,4 @@ def edit_baby_information(request):
             'chestcircumference': active_baby.chestcircumference is not None,
             'production_method':  bool(active_baby.production_method),
         },
-    })
+    }

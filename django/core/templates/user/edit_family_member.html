@@ -22,15 +22,6 @@
 
     <main class="pt-2 pb-32 px-4 mx-auto max-w-md md:max-w-none w-full md:px-8 lg:px-16 xl:px-32 2xl:px-64 space-y-6">
 
-        {% if add_error %}
-        <div class="bg-red-50 text-red-600 text-sm rounded-2xl px-4 py-3">{{ add_error }}</div>
-        {% endif %}
-        {% if add_success %}
-        <div class="bg-green-50 text-green-700 text-sm rounded-2xl px-4 py-3 flex items-center gap-2">
-            <span class="material-symbols-outlined text-[18px]">check_circle</span>{{ add_success }}
-        </div>
-        {% endif %}
-
         <!-- 待審核申請 -->
         {% if pending_members %}
         <section>
@@ -42,28 +33,33 @@
                 <div class="bg-surface-container-lowest rounded-2xl p-5 shadow-sm border border-red-200/50 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <div class="flex items-center gap-3">
                         <div class="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center shrink-0 overflow-hidden">
-                            {% if req.user_id.avatar %}
-                            <img src="{{ req.user_id.avatar }}" alt="{{ req.user_id.name }}" class="w-full h-full object-cover">
+                            {% if req.applicant.avatar_url %}
+                            <img src="{{ req.applicant.avatar_url }}" alt="{{ req.applicant.name }}" class="w-full h-full object-cover">
                             {% else %}
                             <span class="material-symbols-outlined text-red-500 text-[20px]">person_pin</span>
                             {% endif %}
                         </div>
                         <div class="min-w-0">
-                            <p class="text-sm font-bold text-on-surface truncate">{{ req.user_id.name }}</p>
-                            {% if req.user_id.email %}<p class="text-xs text-on-surface-variant truncate">{{ req.user_id.email }}</p>{% endif %}
+                            <p class="text-sm font-bold text-on-surface truncate">{{ req.applicant.name }}</p>
+                            {% if req.applicant.email %}<p class="text-xs text-on-surface-variant truncate">{{ req.applicant.email }}</p>{% endif %}
+                            <p class="text-[11px] text-on-surface-variant/80 truncate">申請加入：{{ req.case_code }}</p>
                         </div>
                     </div>
                     <div class="flex flex-wrap items-center gap-3">
-                        <form method="post" action="{% url 'edit_family_member' %}">
+                        <form method="post" action="{% url 'handle_join_request' %}">
                             {% csrf_token %}
                             <input type="hidden" name="action" value="approve_request">
-                            <input type="hidden" name="request_id" value="{{ req.user_id.user_id }}">
+                            <input type="hidden" name="case_id" value="{{ req.case_id }}">
+                            <input type="hidden" name="target_user_id" value="{{ req.applicant.user_id }}">
+                            <input type="hidden" name="next" value="edit_family_member">
                             <button type="submit" class="h-10 px-5 bg-primary text-white text-sm font-bold rounded-xl hover:bg-primary/90 transition-colors cursor-pointer shadow-sm">同意</button>
                         </form>
-                        <form method="post" action="{% url 'edit_family_member' %}">
+                        <form method="post" action="{% url 'handle_join_request' %}">
                             {% csrf_token %}
                             <input type="hidden" name="action" value="reject_request">
-                            <input type="hidden" name="request_id" value="{{ req.user_id.user_id }}">
+                            <input type="hidden" name="case_id" value="{{ req.case_id }}">
+                            <input type="hidden" name="target_user_id" value="{{ req.applicant.user_id }}">
+                            <input type="hidden" name="next" value="edit_family_member">
                             <button type="submit" class="h-10 px-5 bg-surface-container-high text-on-surface-variant text-sm font-bold rounded-xl hover:bg-surface-container-highest transition-colors cursor-pointer shadow-sm">拒絕</button>
                         </form>
                     </div>
@@ -85,8 +81,8 @@
                     <div class="flex items-center justify-between gap-4 px-5 py-4">
                         <div class="flex items-center gap-3 min-w-0">
                             <div class="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0 overflow-hidden">
-                                {% if member.user.avatar %}
-                                <img src="{{ member.user.avatar }}" alt="{{ member.user.name }}" class="w-full h-full object-cover">
+                                {% if member.user.avatar_url %}
+                                <img src="{{ member.user.avatar_url }}" alt="{{ member.user.name }}" class="w-full h-full object-cover">
                                 {% else %}
                                 <span class="material-symbols-outlined text-[20px]">face</span>
                                 {% endif %}
@@ -97,23 +93,39 @@
                             </div>
                         </div>
                         {% if is_case_owner %}
-                        <button type="button"
-                            class="perm-toggle-btn shrink-0 inline-flex items-center gap-1 px-4 h-9 bg-primary/10 text-primary text-xs font-bold rounded-xl hover:bg-primary/20 transition-colors cursor-pointer"
-                            data-target="perm-panel-{{ mid }}">
-                            <span class="material-symbols-outlined text-[16px]">tune</span>
-                            <span class="toggle-label">權限</span>
-                            <span class="material-symbols-outlined text-[16px] toggle-arrow transition-transform duration-300">expand_more</span>
-                        </button>
+                        <div class="flex items-center gap-2 shrink-0">
+                            <button type="button"
+                                class="perm-toggle-btn inline-flex items-center gap-1 px-4 h-9 bg-primary/10 text-primary text-xs font-bold rounded-xl hover:bg-primary/20 transition-colors cursor-pointer"
+                                data-target="perm-panel-{{ mid }}">
+                                <span class="material-symbols-outlined text-[16px]">tune</span>
+                                <span class="toggle-label">權限</span>
+                                <span class="material-symbols-outlined text-[16px] toggle-arrow transition-transform duration-300">expand_more</span>
+                            </button>
+                            <form method="post" action="{% url 'remove_family_member' %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="member_id" value="{{ mid }}">
+                                <input type="hidden" name="next" value="edit_family_member">
+                                {# 確認訊息放在 data- 屬性，由 JS 用 dataset 讀出；
+                                   姓名若直接內插進 inline JS 字串，屬性內的 HTML 實體會先被
+                                   解碼再交給 JS，引號就能跳脫字串造成 XSS。 #}
+                                <button type="submit"
+                                        class="confirm-action inline-flex items-center justify-center w-9 h-9 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-colors cursor-pointer"
+                                        data-confirm-message="確定要將「{{ member.user.name }}」移出家庭成員嗎？移除後他將無法再檢視這個家庭的紀錄。"
+                                        aria-label="移除協助者">
+                                    <span class="material-symbols-outlined text-[18px]">person_remove</span>
+                                </button>
+                            </form>
+                        </div>
                         {% endif %}
                     </div>
 
                     <!-- 折疊式權限設定 -->
                     {% if is_case_owner %}
                     <div id="perm-panel-{{ mid }}" class="perm-panel {% if selected_member and selected_member.familymember_id == mid %}open{% endif %}">
-                        <form method="post" action="{% url 'edit_family_member' %}" class="px-5 pb-5 pt-3 space-y-4 border-t border-surface-container-high">
+                        <form method="post" action="{% url 'save_family_permissions' %}" class="px-5 pb-5 pt-3 space-y-4 border-t border-surface-container-high">
                             {% csrf_token %}
-                            <input type="hidden" name="action" value="save_permissions">
                             <input type="hidden" name="member_id" value="{{ mid }}">
+                            <input type="hidden" name="next" value="edit_family_member">
                             <input type="hidden" id="perm_baby_records_{{ mid }}" name="perm_baby_records" value="{{ member.permissions.baby_records|default:'view' }}">
                             <input type="hidden" id="perm_mom_records_{{ mid }}" name="perm_mom_records" value="{{ member.permissions.mom_records|default:'view' }}">
                             <input type="hidden" id="perm_care_records_{{ mid }}" name="perm_care_records" value="{{ member.permissions.care_records|default:'view' }}">
@@ -218,6 +230,16 @@ document.querySelectorAll('[data-feature][data-member]').forEach(function(group)
             btn.classList.add('active');
             if (hiddenInput) hiddenInput.value = btn.dataset.value;
         });
+    });
+});
+
+// 破壞性操作的二次確認（訊息一律從 data- 屬性用 dataset 讀，不做字串內插）
+document.querySelectorAll('.confirm-action').forEach(function (btn) {
+    btn.addEventListener('click', function (event) {
+        var message = btn.dataset.confirmMessage || '確定要執行這個操作嗎？';
+        if (!window.confirm(message)) {
+            event.preventDefault();
+        }
     });
 });
 </script>

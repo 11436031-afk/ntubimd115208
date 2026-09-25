@@ -120,6 +120,7 @@
         </form>
     </main>
 </div>
+{% if form_state %}{{ form_state|json_script:"add-case-form-state" }}{% endif %}
 {% endblock %}
 
 {% block extra_js %}
@@ -236,6 +237,29 @@ document.addEventListener('DOMContentLoaded', function () {
     const tripletInput   = document.getElementById('triplet-count-input');
     const cardsContainer = document.getElementById('baby-cards-container');
 
+    // ── 驗證失敗重繪：把後端回傳的 form_state 回填到動態產生的卡片 ──────
+    // 沒有這段的話，錯誤訊息一出現整張表單就被清空、胎數也被重設。
+    const formStateEl = document.getElementById('add-case-form-state');
+    let formState = null;
+    try {
+        formState = formStateEl ? JSON.parse(formStateEl.textContent || 'null') : null;
+    } catch (err) {
+        formState = null;
+    }
+    if (!formState || typeof formState !== 'object' || !Array.isArray(formState.babies)) {
+        formState = null;
+    }
+    const savedBabies = formState ? formState.babies : [];
+
+    function escAttr(value) {
+        return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/"/g, '&quot;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+    }
+    function selIf(a, b) { return String(a) === String(b) ? ' selected' : ''; }
+
     // 每位嬰幼兒使用不同色調，讓使用者能快速區分多胎欄位
     const CARD_STYLES = [
         { headerBg: 'bg-primary/10',   border: 'border-primary/20',   accent: 'text-primary',   inputRing: 'focus:ring-primary-container' },
@@ -249,6 +273,8 @@ document.addEventListener('DOMContentLoaded', function () {
         const num = index + 1;
         const lbl = `嬰幼兒 ${LABELS[index] || num}`;
         const inputBase = `w-full bg-surface-container-low border-none rounded-xl text-on-surface transition-all text-sm outline-none font-medium ${s.inputRing} focus:ring-2`;
+        const v = savedBabies[index] || {};
+        const vitalsHidden = v.birthdaytime ? '' : ' hidden';
 
         return `
 <div class="rounded-2xl border ${s.border} overflow-hidden" id="baby-card-${num}">
@@ -265,6 +291,7 @@ document.addEventListener('DOMContentLoaded', function () {
             <div class="relative">
                 <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant/50">badge</span>
                 <input type="text" name="baby_name_${num}" placeholder="例如：大寶、小寶"
+                    value="${escAttr(v.name)}"
                     class="${inputBase} pl-12 pr-4 py-3 placeholder:text-on-surface-variant/40" />
             </div>
         </div>
@@ -273,9 +300,9 @@ document.addEventListener('DOMContentLoaded', function () {
         <div class="space-y-2">
             <label class="text-xs font-bold text-on-surface-variant uppercase tracking-wider pl-1">性別</label>
             <select name="gender_${num}" class="${inputBase} px-4 py-3" required>
-                <option value="" disabled selected>請選擇性別</option>
-                <option value="1">男</option>
-                <option value="2">女</option>
+                <option value="" disabled${v.gender ? '' : ' selected'}>請選擇性別</option>
+                <option value="1"${selIf(v.gender, '1')}>男</option>
+                <option value="2"${selIf(v.gender, '2')}>女</option>
             </select>
         </div>
 
@@ -285,28 +312,32 @@ document.addEventListener('DOMContentLoaded', function () {
             <div class="relative">
                 <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant/50">event</span>
                 <input type="datetime-local" name="birthdaytime_${num}" id="birthdaytime-${num}"
+                    value="${escAttr(v.birthdaytime)}"
                     class="${inputBase} pl-11 pr-3 py-3"
                     onchange="toggleVitals(${num})" oninput="toggleVitals(${num})" />
             </div>
         </div>
 
         <!-- 出生體徵（填出生時間後展開） -->
-        <div id="vitals-${num}" class="space-y-4 hidden">
+        <div id="vitals-${num}" class="space-y-4${vitalsHidden}">
             <div class="h-px bg-surface-container-high"></div>
             <p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider pl-1">出生體徵</p>
             <div class="grid grid-cols-2 gap-3">
                 <div class="space-y-1.5">
                     <label class="text-xs text-on-surface-variant pl-1">體重</label>
                     <div class="relative">
-                        <input type="number" step="0.1" name="baby_weight_${num}" placeholder="如 3200"
+                        <!-- 後端 validate_birth_vitals 驗的是 kg（0.3 ~ 6.0），UI 單位必須一致 -->
+                        <input type="number" step="0.01" min="0.3" max="6" name="baby_weight_${num}" placeholder="如 3.2"
+                            value="${escAttr(v.weight)}"
                             class="${inputBase} px-4 py-3" />
-                        <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-on-surface-variant">g</span>
+                        <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-on-surface-variant">kg</span>
                     </div>
                 </div>
                 <div class="space-y-1.5">
                     <label class="text-xs text-on-surface-variant pl-1">身高</label>
                     <div class="relative">
                         <input type="number" step="0.1" name="baby_height_${num}" placeholder="如 50.5"
+                            value="${escAttr(v.height)}"
                             class="${inputBase} px-4 py-3" />
                         <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-on-surface-variant">cm</span>
                     </div>
@@ -315,6 +346,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     <label class="text-xs text-on-surface-variant pl-1">頭圍</label>
                     <div class="relative">
                         <input type="number" step="0.1" name="baby_head_${num}" placeholder="如 34"
+                            value="${escAttr(v.head)}"
                             class="${inputBase} px-4 py-3" />
                         <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-on-surface-variant">cm</span>
                     </div>
@@ -323,6 +355,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     <label class="text-xs text-on-surface-variant pl-1">胸圍</label>
                     <div class="relative">
                         <input type="number" step="0.1" name="baby_chest_${num}" placeholder="如 32"
+                            value="${escAttr(v.chest)}"
                             class="${inputBase} px-4 py-3" />
                         <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-on-surface-variant">cm</span>
                     </div>
@@ -333,11 +366,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 <label class="text-xs text-on-surface-variant pl-1">生產方式</label>
                 <div class="relative">
                     <select name="production_method_${num}" class="${inputBase} px-4 py-3 appearance-none bg-none">
-                        <option value="" disabled selected>請選擇</option>
-                        <option value="自然產">自然產</option>
-                        <option value="剖腹產">剖腹產</option>
-                        <option value="無痛分娩">無痛分娩自然產</option>
-                        <option value="水中生產">水中生產</option>
+                        <option value="" disabled${v.production_method ? '' : ' selected'}>請選擇</option>
+                        <option value="自然產"${selIf(v.production_method, '自然產')}>自然產</option>
+                        <option value="剖腹產"${selIf(v.production_method, '剖腹產')}>剖腹產</option>
+                        <option value="無痛分娩"${selIf(v.production_method, '無痛分娩')}>無痛分娩自然產</option>
+                        <option value="水中生產"${selIf(v.production_method, '水中生產')}>水中生產</option>
                     </select>
                     <span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none text-[18px]">expand_more</span>
                 </div>
@@ -379,6 +412,12 @@ document.addEventListener('DOMContentLoaded', function () {
     tripletInput.addEventListener('input', function () {
         if (countSelect.value === '3+') renderCards();
     });
+
+    // 驗證失敗重繪時先還原胎數選擇，再渲染卡片
+    if (formState) {
+        if (formState.baby_count) countSelect.value = formState.baby_count;
+        if (formState.triplet_count) tripletInput.value = formState.triplet_count;
+    }
 
     // 初始渲染
     onCountChange();

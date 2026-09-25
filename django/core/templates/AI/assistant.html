@@ -1,6 +1,6 @@
 {% extends 'base/base.html' %}
 {% load static %}
-{% block title %}成長評估助手{% endblock %}
+{% block title %}成長評估助理{% endblock %}
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/assistant.css' %}" />
 {% endblock %}
@@ -9,7 +9,7 @@
     <div class="flex items-center gap-3">
         <a href="/babyinformation/" class="inline-flex items-center gap-2 rounded-full p-2 hover:bg-surface-container-low transition-colors active:scale-95 duration-200" aria-label="返回">
             <span class="material-symbols-outlined text-primary text-[28px]" style="font-variation-settings: 'FILL' 1, 'wght' 700, 'GRAD' 0, 'opsz' 24;">arrow_back</span>
-            <span class="font-extrabold text-2xl text-primary tracking-tight">嬰幼兒成長評估助手</span>
+            <span class="font-extrabold text-2xl text-primary tracking-tight">嬰幼兒成長評估助理</span>
         </a>
     </div>
 </header>
@@ -18,11 +18,6 @@
 
         <!-- CSRF for AJAX -->
         <input type="hidden" id="csrf-token" value="{{ csrf_token }}" />
-
-        <!-- ── 醫療免責聲明（固定顯示） ── -->
-        <p class="assistant-disclaimer rounded-xl bg-primary/5 border border-primary/20 px-4 py-2 text-[11px] leading-relaxed text-on-surface-variant" role="note">
-            {{ medical_disclaimer|default:"本內容為一般衛教資訊，不能取代專業醫療診斷，如有不適請諮詢醫師。" }}
-        </p>
 
         <!-- ── Messages ── -->
         <div id="assistant-messages" class="assistant-messages" aria-live="polite">
@@ -43,7 +38,6 @@
                         <button
                             class="assistant-baby-card"
                             type="button"
-                            data-baby-id="{{ item.baby.baby_id }}"
                             data-baby-name="{{ item.baby.name }}"
                             role="listitem"
                         >
@@ -131,7 +125,6 @@
         const qlWrap         = document.getElementById('question-list-wrap');
         const allQBtns       = document.querySelectorAll('.assistant-question-buttons button');
         let   selectedBaby   = '';
-        let   selectedBabyId = '';
         let   isSubmitting   = false;
 
         /* ════════════════════════════════
@@ -192,7 +185,6 @@
                 babyCards.forEach(c => c.classList.remove('is-selected'));
                 card.classList.add('is-selected');
                 selectedBaby = card.dataset.babyName;
-                selectedBabyId = card.dataset.babyId || '';
 
                 if (questionHint) {
                     questionHint.classList.remove('hint-slide');
@@ -212,12 +204,10 @@
         ════════════════════════════════ */
         allQBtns.forEach((btn) => {
             btn.addEventListener('click', async () => {
-                if (isSubmitting || !selectedBabyId) return;
+                if (isSubmitting || !selectedBaby) return;
 
-                // 送給後端的只有「問題本文」與 baby_id，寶寶名稱由後端驗證歸屬後自行組合；
-                // 這裡串上名字只是為了畫面顯示。
-                const question = btn.dataset.question || '';
-                appendMessage(`${selectedBaby}${question}`, 'user');
+                const question = `${selectedBaby}${btn.dataset.question}`;
+                appendMessage(question, 'user');
 
                 isSubmitting = true;
                 setQBtnsDisabled(true);
@@ -226,7 +216,6 @@
                 try {
                     const body = new FormData();
                     body.append('question', question);
-                    body.append('baby_id', selectedBabyId);
                     body.append('csrfmiddlewaretoken', csrfToken);
 
                     const res  = await fetch(window.location.href, {
@@ -240,7 +229,7 @@
                         credentials: 'same-origin',
                     });
                     const data = await res.json();
-                    if (!res.ok || !data.ok) throw new Error(data.error || '助手暫時無法回覆。');
+                    if (!res.ok || !data.ok) throw new Error(data.error || '助理暫時無法回覆。');
                     appendMessage(data.answer, 'bot');
                 } catch (err) {
                     appendMessage(err.message, 'error');

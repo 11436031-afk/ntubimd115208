@@ -42,7 +42,7 @@
                         <label class="text-xs font-bold text-on-surface-variant uppercase tracking-wider pl-1">嬰兒暱稱</label>
                         <div class="relative">
                             <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant/50 text-[20px]">face</span>
-                            <input type="text" name="baby_name" value="{{ baby.name }}" required placeholder="例如：小寶、球球"
+                            <input type="text" name="baby_name" value="{{ form_data.baby_name|default:baby.name }}" required placeholder="例如：小寶、球球"
                                    class="w-full bg-surface-container-low border-none rounded-xl pl-12 pr-4 py-3.5 text-on-surface focus:ring-2 focus:ring-primary/30 transition-all text-sm outline-none font-medium placeholder:text-on-surface-variant/40" />
                         </div>
                     </div>
@@ -51,7 +51,7 @@
                         <label class="text-xs font-bold text-on-surface-variant uppercase tracking-wider pl-1">性別</label>
                         <select name="gender" required class="w-full bg-surface-container-low border-none rounded-xl px-4 py-3.5 text-on-surface focus:ring-2 focus:ring-primary/30 transition-all text-sm outline-none font-medium">
                             {% for value, label in gender_choices %}
-                            <option value="{{ value }}" {% if baby.gender == value %}selected{% endif %}>{{ label }}</option>
+                            <option value="{{ value }}" {% if form_data.gender %}{% if form_data.gender == value %}selected{% endif %}{% elif baby.gender == value %}selected{% endif %}>{{ label }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -61,12 +61,16 @@
                         <label class="text-xs font-bold text-on-surface-variant uppercase tracking-wider pl-1">出生時間</label>
                         <div class="relative">
                             <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant/50 text-[20px]">event</span>
+                            <!-- data-min-gestation-days 與後端 views/pregnancycase.validate_birth_datetime
+                                 的 154 天（22 週）下限保持一致，避免前端放行、後端才擋下 -->
                             <input type="datetime-local" name="birthdaytime" id="birthdaytime-input"
                                    value="{{ birthdaytime_value }}"
                                    max="{% now 'Y-m-d' %}T23:59"
-                                   {% if birth_locked %}readonly{% endif %}
+                                   data-min-gestation-days="154"
+                                   data-min-gestation-message="出生時間不可早於懷孕 22 週（最後一次月經後 154 天），請確認日期是否正確。"
+                                   {% if locks.birthdaytime %}readonly{% endif %}
                                    class="w-full border-none rounded-xl pl-11 pr-3 py-3.5 text-sm outline-none font-medium transition-all
-                                          {% if birth_locked %}bg-surface-container-low/40 text-on-surface-variant/60 cursor-not-allowed{% else %}bg-surface-container-low text-on-surface focus:ring-2 focus:ring-primary/30{% endif %}" />
+                                          {% if locks.birthdaytime %}bg-surface-container-low/40 text-on-surface-variant/60 cursor-not-allowed{% else %}bg-surface-container-low text-on-surface focus:ring-2 focus:ring-primary/30{% endif %}" />
                         </div>
                     </div>
                     <!-- LMP（唯讀） -->
@@ -139,7 +143,7 @@
                                    class="w-full bg-surface-container-low/40 border-none rounded-xl px-4 pr-10 py-3.5 text-on-surface-variant/60 text-sm outline-none font-medium cursor-not-allowed" />
                             {% else %}
                             <input type="number" name="birth_weight" step="0.01" min="0.3" max="6.0"
-                                   value="{{ baby.baby_weight }}" placeholder="如 3.2"
+                                   value="{{ form_data.birth_weight|default:baby.baby_weight|default_if_none:'' }}" placeholder="如 3.2"
                                    class="w-full bg-surface-container-low border-none rounded-xl px-4 pr-10 py-3.5 text-on-surface focus:ring-2 focus:ring-primary/30 transition-all text-sm outline-none font-medium" />
                             {% endif %}
                             <span class="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium {% if locks.baby_weight %}text-on-surface-variant/40{% else %}text-on-surface-variant{% endif %}">kg</span>
@@ -154,7 +158,7 @@
                                    class="w-full bg-surface-container-low/40 border-none rounded-xl px-4 pr-10 py-3.5 text-on-surface-variant/60 text-sm outline-none font-medium cursor-not-allowed" />
                             {% else %}
                             <input type="number" name="birth_height" step="0.1" min="25" max="65"
-                                   value="{{ baby.baby_height }}" placeholder="如 50.5"
+                                   value="{{ form_data.birth_height|default:baby.baby_height|default_if_none:'' }}" placeholder="如 50.5"
                                    class="w-full bg-surface-container-low border-none rounded-xl px-4 pr-10 py-3.5 text-on-surface focus:ring-2 focus:ring-primary/30 transition-all text-sm outline-none font-medium" />
                             {% endif %}
                             <span class="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium {% if locks.baby_height %}text-on-surface-variant/40{% else %}text-on-surface-variant{% endif %}">cm</span>
@@ -169,7 +173,7 @@
                                    class="w-full bg-surface-container-low/40 border-none rounded-xl px-4 pr-10 py-3.5 text-on-surface-variant/60 text-sm outline-none font-medium cursor-not-allowed" />
                             {% else %}
                             <input type="number" name="birth_head" step="0.1" min="25" max="45"
-                                   value="{{ baby.babyheadcircumference }}" placeholder="如 34"
+                                   value="{{ form_data.birth_head|default:baby.babyheadcircumference|default_if_none:'' }}" placeholder="如 34"
                                    class="w-full bg-surface-container-low border-none rounded-xl px-4 pr-10 py-3.5 text-on-surface focus:ring-2 focus:ring-primary/30 transition-all text-sm outline-none font-medium" />
                             {% endif %}
                             <span class="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium {% if locks.babyheadcircumference %}text-on-surface-variant/40{% else %}text-on-surface-variant{% endif %}">cm</span>
@@ -184,7 +188,7 @@
                                    class="w-full bg-surface-container-low/40 border-none rounded-xl px-4 pr-10 py-3.5 text-on-surface-variant/60 text-sm outline-none font-medium cursor-not-allowed" />
                             {% else %}
                             <input type="number" name="birth_chest" step="0.1" min="20" max="42"
-                                   value="{{ baby.chestcircumference }}" placeholder="如 32"
+                                   value="{{ form_data.birth_chest|default:baby.chestcircumference|default_if_none:'' }}" placeholder="如 32"
                                    class="w-full bg-surface-container-low border-none rounded-xl px-4 pr-10 py-3.5 text-on-surface focus:ring-2 focus:ring-primary/30 transition-all text-sm outline-none font-medium" />
                             {% endif %}
                             <span class="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium {% if locks.chestcircumference %}text-on-surface-variant/40{% else %}text-on-surface-variant{% endif %}">cm</span>
@@ -201,11 +205,13 @@
                     <div class="relative">
                         <select name="production_method"
                                 class="w-full bg-surface-container-low border-none rounded-xl px-4 py-3.5 text-on-surface focus:ring-2 focus:ring-primary/30 transition-all text-sm outline-none font-medium appearance-none">
-                            <option value="" disabled {% if not baby.production_method %}selected{% endif %}>請選擇生產方式</option>
-                            <option value="自然產"   {% if baby.production_method == '自然產'   %}selected{% endif %}>自然產</option>
-                            <option value="剖腹產"   {% if baby.production_method == '剖腹產'   %}selected{% endif %}>剖腹產</option>
-                            <option value="無痛分娩" {% if baby.production_method == '無痛分娩' %}selected{% endif %}>無痛分娩自然產</option>
-                            <option value="水中生產" {% if baby.production_method == '水中生產' %}selected{% endif %}>水中生產</option>
+                            {% with pm=form_data.production_method|default:baby.production_method %}
+                            <option value="" disabled {% if not pm %}selected{% endif %}>請選擇生產方式</option>
+                            <option value="自然產"   {% if pm == '自然產'   %}selected{% endif %}>自然產</option>
+                            <option value="剖腹產"   {% if pm == '剖腹產'   %}selected{% endif %}>剖腹產</option>
+                            <option value="無痛分娩" {% if pm == '無痛分娩' %}selected{% endif %}>無痛分娩自然產</option>
+                            <option value="水中生產" {% if pm == '水中生產' %}selected{% endif %}>水中生產</option>
+                            {% endwith %}
                         </select>
                         <span class="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant/50 pointer-events-none text-[20px]">expand_more</span>
                     </div>
@@ -213,8 +219,10 @@
                 </div>
             </section>
 
-            <!-- 儲存按鈕 -->
-            <button type="button" id="save-btn"
+            <!-- 儲存按鈕：type="submit" 作為備援，JS 失效時表單仍可正常送出。
+                 JS 只在「有未鎖定的出生體徵要二次確認」時才 preventDefault 改跳 Modal，
+                 沒有需要確認的欄位就直接交給瀏覽器原生送出（含 required 驗證）。 -->
+            <button type="submit" id="save-btn"
                     class="w-full py-4 bg-primary text-white rounded-2xl font-headline font-bold text-base shadow-[0_10px_20px_rgba(101,81,138,0.2)] hover:scale-[1.02] active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2">
                 <span class="material-symbols-outlined text-xl">save</span>
                 儲存變更
@@ -267,9 +275,29 @@ document.addEventListener('DOMContentLoaded', function () {
         if (birthdayInput.value > nowStr) birthdayInput.value = nowStr;
     }
 
+    var MIN_GESTATION_DAYS = birthdayInput
+        ? (parseInt(birthdayInput.getAttribute('data-min-gestation-days'), 10) || 154)
+        : 154;
+    var MIN_GESTATION_MESSAGE = birthdayInput
+        ? (birthdayInput.getAttribute('data-min-gestation-message') || '')
+        : '';
+
+    function pad2(n) { return String(n).padStart(2, '0'); }
+
+    function applyMinBirthDate() {
+        if (!lmpValue || !birthdayInput || birthdayInput.readOnly) return;
+        var minDate = new Date(lmpValue);
+        if (isNaN(minDate.getTime())) return;
+        minDate.setDate(minDate.getDate() + MIN_GESTATION_DAYS);
+        birthdayInput.min = minDate.getFullYear() + '-'
+            + pad2(minDate.getMonth() + 1) + '-'
+            + pad2(minDate.getDate()) + 'T00:00';
+    }
+
     function calcBirthWeeks() {
         if (!lmpValue || !birthdayInput || !birthdayInput.value) {
             if (birthWeeksInput) birthWeeksInput.value = '';
+            if (birthdayInput && birthdayInput.setCustomValidity) birthdayInput.setCustomValidity('');
             return;
         }
         var lmp      = new Date(lmpValue);
@@ -279,7 +307,14 @@ document.addEventListener('DOMContentLoaded', function () {
         var weeks = Math.floor(diffDays / 7);
         var days  = diffDays % 7;
         birthWeeksInput.value = days ? weeks + 'w' + days + 'd' : weeks + 'w';
+
+        // Keep the front-end lower bound in sync with the server-side check.
+        if (birthdayInput.setCustomValidity) {
+            birthdayInput.setCustomValidity(diffDays < MIN_GESTATION_DAYS ? MIN_GESTATION_MESSAGE : '');
+        }
     }
+
+    applyMinBirthDate();
 
     if (birthdayInput && !birthdayInput.readOnly) {
         birthdayInput.addEventListener('change', function() { clampToNow(); calcBirthWeeks(); });
@@ -339,18 +374,26 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     if (saveBtn && mainForm && modal) {
-        saveBtn.addEventListener('click', function() {
+        saveBtn.addEventListener('click', function(event) {
             var vitals = getUnlockedVitals();
             if (vitals.length === 0) {
-                mainForm.submit();
                 return;
             }
-            confirmList.innerHTML = vitals.map(function(v) {
-                return '<div class="flex justify-between items-center py-0.5">'
-                     + '<span class="text-on-surface-variant">' + v.label + '</span>'
-                     + '<span class="font-bold">' + v.value + (v.unit ? '\u00a0' + v.unit : '') + '</span>'
-                     + '</div>';
-            }).join('');
+            event.preventDefault();
+            confirmList.textContent = '';
+            vitals.forEach(function(v) {
+                var row = document.createElement('div');
+                row.className = 'flex justify-between items-center py-0.5';
+                var labelEl = document.createElement('span');
+                labelEl.className = 'text-on-surface-variant';
+                labelEl.textContent = v.label;
+                var valueEl = document.createElement('span');
+                valueEl.className = 'font-bold';
+                valueEl.textContent = v.unit ? (v.value + ' ' + v.unit) : v.value;
+                row.appendChild(labelEl);
+                row.appendChild(valueEl);
+                confirmList.appendChild(row);
+            });
             modal.classList.remove('hidden');
         });
 

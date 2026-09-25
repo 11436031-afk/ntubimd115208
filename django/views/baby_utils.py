@@ -2,9 +2,11 @@ import datetime
 import calendar
 from django.conf import settings
 from django.core.files.storage import FileSystemStorage
+from django.utils import timezone
 from core.models import BabyRecord, BabyGrowthMap, BabyStatus
 from views.pregnancycase import resolve_active_baby
 from views.session_utils import get_current_user_profile
+from views.upload_utils import InvalidImageError, safe_image_name, validate_image_upload
 
 def get_active_baby(request):
     """取得當前 Session 活躍的寶寶"""
@@ -48,8 +50,8 @@ def get_birth_week(baby):
     birth_date = baby.birthdaytime.date() if hasattr(baby.birthdaytime, 'date') else baby.birthdaytime
     lmp_date = baby.pregnancycase.menstruation
     
-    # 防禦一：出生日不可大於今天
-    if birth_date > datetime.date.today():
+    # 防禦一：出生日不可大於今天（一律以 Asia/Taipei 當地日期為準）
+    if birth_date > timezone.localdate():
         return None
         
     delta = birth_date - lmp_date
@@ -108,10 +110,18 @@ def get_relevant_timecourses(age_in_months):
     else: return [36]
 
 def save_uploaded_image(image_file):
-    """上傳圖片至儲存區，回傳相對 URL"""
+    """上傳圖片至儲存區，回傳相對 URL。
+
+    安全性：副檔名一律由實際檔頭決定、檔名由系統產生，
+    絕不沿用使用者提供的 image_file.name —— 否則上傳 .html / .svg
+    存到站內同源路徑後會造成儲存型 XSS。
+    檔案不是可接受的圖片時丟出 InvalidImageError（訊息可直接顯示給使用者），
+    呼叫端必須捕捉並回到表單顯示錯誤。
+    """
     if not image_file: return None
+    extension = validate_image_upload(image_file)
     storage = FileSystemStorage(location=settings.MEDIA_ROOT, base_url=settings.MEDIA_URL)
-    filename = storage.save(f'baby_records/{image_file.name}', image_file)
+    filename = storage.save(f'baby_records/{safe_image_name(extension)}', image_file)
     return storage.url(filename)
 
 
@@ -175,11 +185,16 @@ _OFF_BLOCKS_VIEW = {'mom_records'}
 
 def get_permission(member, feature, default='view'):
     """讀取某位協助者對某功能的權限等級。
+    - member 為 None（非擁有者且無 FamilyMember 列）→ 'off'，一律拒絕（fail closed）
     - mom_records 的 off 代表「不可查看」
     - 其他 feature 的 off 向下相容視為 view
+
+    注意：default 只用於「有 FamilyMember 列、但 permissions 缺這個 key」的舊資料，
+    不再用於「完全沒有成員關係」的情境。所有呼叫點都已先判斷個案擁有者並短路回 True，
+    擁有者不會走到這裡，因此不會被擋住。
     """
     if member is None:
-        return default
+        return 'off'
     value = (member.permissions or {}).get(feature, default)
     if value not in PERMISSION_LEVELS:
         return default

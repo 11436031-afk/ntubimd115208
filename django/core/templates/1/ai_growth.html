@@ -19,6 +19,12 @@
 
 {% block content %}
 <div class="bg-background min-h-screen text-on-surface">
+    <!-- 設計展示頁警示橫幅：本頁內容為寫死的範例資料，不是使用者的真實紀錄 -->
+    <div class="w-full bg-amber-100 border-b-2 border-amber-400 text-amber-900 px-4 py-3 text-center text-xs sm:text-sm font-extrabold flex items-center justify-center gap-2" role="alert">
+        <span class="material-symbols-outlined text-[18px]" style="font-variation-settings:'FILL' 1">warning</span>
+        <span>此頁為設計展示，內容為範例資料，非您的真實紀錄</span>
+    </div>
+
     <!-- Version 2 Top Navigation Tab Bar & Back to Home -->
     <div class="max-w-md md:max-w-xl mx-auto px-4 pt-5 pb-2 space-y-3">
         <!-- 返回首頁按鈕 -->

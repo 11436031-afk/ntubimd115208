@@ -25,7 +25,7 @@
                 <div class="w-5 h-5 rounded-full bg-white flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition-transform">
                     <span class="material-symbols-outlined text-primary text-[14px]">{% if switcher_active_item %}{{ switcher_active_item.icon }}{% else %}face{% endif %}</span>
                 </div>
-                <span class="text-[13px] font-bold text-primary">{{ switcher_active_item.name|default:'切換寶寶' }}</span>
+                <span class="text-[13px] font-bold text-primary">{{ switcher_active_item.name|default:'切換嬰幼兒' }}</span>
                 <span class="material-symbols-outlined text-primary text-[18px]">keyboard_arrow_down</span>
             </button>
             <div id="baby-switcher-menu" class="absolute top-full right-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-surface-container-high overflow-hidden opacity-0 pointer-events-none transition-all duration-200 z-[110] transform origin-top-right scale-95">
@@ -67,6 +67,24 @@
         </div>
     </nav>
 
+
+    {# Django messages（messages.success / messages.error）全站共用顯示區塊 #}
+    {% if messages %}
+    <div id="django-messages" class="fixed top-[84px] left-1/2 -translate-x-1/2 z-[120] w-[min(92vw,28rem)] flex flex-col gap-2 pointer-events-none">
+        {% for message in messages %}
+        <div class="django-message pointer-events-auto flex items-start gap-3 rounded-2xl border px-4 py-3 text-sm font-medium shadow-lg backdrop-blur-md transition-opacity duration-300
+            {% if 'error' in message.tags %}bg-error/10 border-error/30 text-error
+            {% elif 'warning' in message.tags %}bg-amber-50 border-amber-300 text-amber-700
+            {% else %}bg-primary/10 border-primary/30 text-primary{% endif %}">
+            <span class="material-symbols-outlined text-[20px] shrink-0">{% if 'error' in message.tags %}error{% elif 'warning' in message.tags %}warning{% else %}check_circle{% endif %}</span>
+            <span class="flex-1 leading-relaxed">{{ message }}</span>
+            <button type="button" class="django-message-close shrink-0 opacity-70 hover:opacity-100 transition-opacity cursor-pointer" aria-label="關閉訊息">
+                <span class="material-symbols-outlined text-[18px]">close</span>
+            </button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
 
     {% block content %}{% endblock %}
 
@@ -111,10 +129,40 @@
             });
         };
 
+        // Django messages：可手動關閉，成功訊息幾秒後自動淡出
+        const initDjangoMessages = () => {
+            const container = document.getElementById('django-messages');
+            if (!container) {
+                return;
+            }
+
+            const dismiss = (item) => {
+                item.style.opacity = '0';
+                window.setTimeout(() => {
+                    item.remove();
+                    if (!container.querySelector('.django-message')) {
+                        container.remove();
+                    }
+                }, 300);
+            };
+
+            container.querySelectorAll('.django-message').forEach((item) => {
+                const closeBtn = item.querySelector('.django-message-close');
+                if (closeBtn) {
+                    closeBtn.addEventListener('click', () => dismiss(item));
+                }
+                window.setTimeout(() => dismiss(item), 6000);
+            });
+        };
+
         if (document.readyState !== 'loading') {
             initSwitcher();
+            initDjangoMessages();
         } else {
-            document.addEventListener('DOMContentLoaded', initSwitcher);
+            document.addEventListener('DOMContentLoaded', () => {
+                initSwitcher();
+                initDjangoMessages();
+            });
         }
     </script>
 </body>

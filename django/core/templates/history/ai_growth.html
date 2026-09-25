@@ -4,6 +4,12 @@
 
 {% block content %}
 <main class="mx-auto px-4 sm:px-6 pt-5 pb-32 max-w-md md:max-w-3xl lg:max-w-4xl w-full transition-all duration-300">
+    <!-- 設計展示頁警示橫幅：本頁內容為寫死的範例資料，不是使用者的真實紀錄 -->
+    <div class="-mx-4 sm:-mx-6 mb-4 bg-amber-100 border-y-2 border-amber-400 text-amber-900 px-4 py-3 text-center text-xs sm:text-sm font-extrabold flex items-center justify-center gap-2" role="alert">
+        <span class="material-symbols-outlined text-[18px]" style="font-variation-settings:'FILL' 1">warning</span>
+        <span>此頁為設計展示，內容為範例資料，非您的真實紀錄</span>
+    </div>
+
     <!-- Top Header -->
     <div class="flex items-center justify-between mb-4">
         <button onclick="window.location.href='/history-review/{% if active_selection_query %}?{{ active_selection_query }}{% endif %}'" class="flex items-center gap-1.5 text-xs font-bold text-[#8064A2] bg-[#EDE5F5] hover:bg-[#A98BC7]/20 px-3.5 py-1.5 rounded-full transition-all active:scale-95 cursor-pointer" type="button">

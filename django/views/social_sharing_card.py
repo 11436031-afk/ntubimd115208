@@ -24,7 +24,7 @@ def social_sharing_card_view(request):
         
         # 計算年齡 / 月齡
         if baby_birthday:
-            today = timezone.now().date()
+            today = timezone.localdate()
             age_days = (today - baby_birthday).days
             if age_days < 0:
                 baby_age_text = "尚未出生"
@@ -83,48 +83,87 @@ def social_sharing_card_view(request):
         'baby_age_text': baby_age_text,
         'completed_milestones': completed_milestones,
         'record_photos': record_photos,
-        'current_date': timezone.now().date().strftime('%Y-%m-%d'),
+        'current_date': timezone.localdate().strftime('%Y-%m-%d'),
     }
     return render(request, 'user/social_sharing_card.html', context)
 
 
 import os
+import re
 import base64
+import binascii
+import logging
 import uuid
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
+from django.http import Http404, JsonResponse
+from django.views.decorators.http import require_POST
 from django.conf import settings
 
-@csrf_exempt
+from views.upload_utils import InvalidImageError, validate_image_bytes
+
+logger = logging.getLogger(__name__)
+
+SHARING_CARD_DIR = 'sharing_cards'
+# 分享頁的 filename 直接來自網址，一定要用白名單擋掉 ../ 之類的路徑穿越
+SHARING_CARD_FILENAME_RE = re.compile(r'^card_[0-9a-f]{8,64}\.(?:png|jpg|gif|webp)$')
+
+
+@require_POST
 def upload_sharing_card(request):
     """將前端 Canvas 生成的圖卡照片上傳至伺服器媒體庫，並回傳專用分享頁面 URL 以供 LINE 分享與預覽"""
-    if request.method == 'POST':
-        image_data = request.POST.get('image_data')
-        if image_data and image_data.startswith('data:image'):
-            try:
-                header, data = image_data.split(';base64,')
-                file_bytes = base64.b64decode(data)
-                
-                filename = f"card_{uuid.uuid4().hex[:10]}.png"
-                media_dir = os.path.join(settings.MEDIA_ROOT, 'sharing_cards')
-                os.makedirs(media_dir, exist_ok=True)
-                
-                filepath = os.path.join(media_dir, filename)
-                with open(filepath, 'wb') as f:
-                    f.write(file_bytes)
-                    
-                image_url = request.build_absolute_uri(f"{settings.MEDIA_URL}sharing_cards/{filename}")
-                share_page_url = request.build_absolute_uri(f"/share_card/{filename}/")
-                return JsonResponse({'status': 'success', 'image_url': image_url, 'share_page_url': share_page_url})
-            except Exception as e:
-                return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
-                
-    return JsonResponse({'status': 'error', 'message': '無效的請求'}, status=400)
+    # 這支 API 會把檔案寫進站內公開目錄，一定要登入才可以用
+    user = get_current_user_profile(request)
+    if not user:
+        return JsonResponse({'status': 'error', 'message': '請先登入。'}, status=401)
+
+    image_data = request.POST.get('image_data') or ''
+    if not image_data.startswith('data:image') or ';base64,' not in image_data:
+        return JsonResponse({'status': 'error', 'message': '無效的請求'}, status=400)
+
+    _header, _sep, data = image_data.partition(';base64,')
+    try:
+        file_bytes = base64.b64decode(data, validate=True)
+    except (binascii.Error, ValueError):
+        return JsonResponse({'status': 'error', 'message': '圖片內容無法解碼。'}, status=400)
+
+    # 副檔名一律由實際檔頭決定，不採用前端宣告的 mime type，
+    # 避免 .html / .svg 被存到同源路徑造成儲存型 XSS
+    try:
+        extension = validate_image_bytes(file_bytes)
+    except InvalidImageError as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+    filename = f'card_{uuid.uuid4().hex}{extension}'
+    media_dir = os.path.join(settings.MEDIA_ROOT, SHARING_CARD_DIR)
+
+    try:
+        os.makedirs(media_dir, exist_ok=True)
+        with open(os.path.join(media_dir, filename), 'wb') as f:
+            f.write(file_bytes)
+    except OSError:
+        logger.exception('寫入分享圖卡失敗')
+        # 不要把 str(e) 回給前端，那會洩漏伺服器路徑
+        return JsonResponse({'status': 'error', 'message': '圖卡儲存失敗，請稍後再試。'}, status=500)
+
+    image_url = request.build_absolute_uri(f"{settings.MEDIA_URL}{SHARING_CARD_DIR}/{filename}")
+    share_page_url = request.build_absolute_uri(f"/share_card/{filename}/")
+    return JsonResponse({'status': 'success', 'image_url': image_url, 'share_page_url': share_page_url})
 
 
 def share_card_detail_view(request, filename):
-    """專用里程碑分享頁面，包含 OpenGraph 標籤讓 LINE 抓取圖片呈現預覽"""
-    image_url = request.build_absolute_uri(f"{settings.MEDIA_URL}sharing_cards/{filename}")
+    """專用里程碑分享頁面，包含 OpenGraph 標籤讓 LINE 抓取圖片呈現預覽。
+
+    這一頁維持公開（LINE 的爬蟲要能讀到 OpenGraph 標籤），
+    但 filename 必須先過白名單，而且檔案不存在時回 404。
+    """
+    filename = os.path.basename(filename or '')
+    if not SHARING_CARD_FILENAME_RE.match(filename):
+        raise Http404('分享圖卡不存在')
+
+    filepath = os.path.join(settings.MEDIA_ROOT, SHARING_CARD_DIR, filename)
+    if not os.path.isfile(filepath):
+        raise Http404('分享圖卡不存在')
+
+    image_url = request.build_absolute_uri(f"{settings.MEDIA_URL}{SHARING_CARD_DIR}/{filename}")
     context = {
         'image_url': image_url,
         'filename': filename,

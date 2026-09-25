@@ -16,7 +16,7 @@
             </button>
         </div>
 				<div class="p-4 border-t border-surface-container-highest/30">
-            <form id="new-conversation-form" method="post">
+            <form method="post">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="new_conversation" />
                 <button type="submit" class="w-full bg-surface-container-low text-on-surface-variant px-4 py-3 rounded-xl font-bold text-sm hover:bg-surface-container-high transition-colors flex items-center justify-center gap-2 cursor-pointer">
@@ -30,20 +30,10 @@
             <div class="space-y-2">
                 <h3 class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider px-2">近期對話</h3>
                 {% for item in items %}
-                <div class="flex items-center gap-1">
-                    <a href="?conversation_id={{ item.id }}" class="flex-1 min-w-0 text-left px-4 py-3 rounded-xl font-medium text-sm transition-colors flex items-center gap-3 group {% if item.is_active %}bg-primary/10 text-primary{% else %}hover:bg-surface-container-low text-on-surface{% endif %}">
-                        <span class="material-symbols-outlined text-[18px] {% if item.is_active %}text-primary{% else %}text-on-surface-variant group-hover:text-primary{% endif %}">history</span>
-                        <span class="truncate">{{ item.title|default:item.question }}</span>
-                    </a>
-                    {# 刪除對話：POST + CSRF，後端會再驗證這個對話是否屬於登入者 #}
-                    <form class="qa-delete-form shrink-0" method="post" action="{% url 'qa_delete_conversation' %}">
-                        {% csrf_token %}
-                        <input type="hidden" name="conversation_id" value="{{ item.id }}" />
-                        <button type="submit" class="w-9 h-9 flex items-center justify-center rounded-full text-on-surface-variant hover:text-error hover:bg-error/10 transition-colors cursor-pointer" aria-label="刪除這個對話" title="刪除這個對話">
-                            <span class="material-symbols-outlined text-[18px]">delete</span>
-                        </button>
-                    </form>
-                </div>
+                <a href="?conversation_id={{ item.id }}" class="w-full text-left px-4 py-3 rounded-xl font-medium text-sm transition-colors flex items-center gap-3 group {% if item.is_active %}bg-primary/10 text-primary{% else %}hover:bg-surface-container-low text-on-surface{% endif %}">
+                    <span class="material-symbols-outlined text-[18px] {% if item.is_active %}text-primary{% else %}text-on-surface-variant group-hover:text-primary{% endif %}">history</span>
+                    <span class="truncate">{{ item.title|default:item.question }}</span>
+                </a>
                 {% endfor %}
             </div>
             {% else %}
@@ -73,13 +63,6 @@
 
     <div class="flex-1 min-w-0 flex flex-col relative bg-[#f7f6f3]/70 backdrop-blur-md shadow-[0_20px_40px_rgba(46,47,45,0.06)] pt-[72px]">
 
-        {# 醫療免責聲明：固定顯示在對話區上方 #}
-        <div class="w-full px-8 pt-3 shrink-0">
-            <p class="mx-auto max-w-3xl rounded-xl border border-primary/20 bg-primary/5 px-4 py-2 text-[11px] leading-relaxed text-on-surface-variant">
-                {{ medical_disclaimer|default:"本內容為一般衛教資訊，不能取代專業醫療診斷，如有不適請諮詢醫師。" }}
-            </p>
-        </div>
-
         <main id="qa-main-scroll" class="qa-main flex-1 min-h-0 overflow-y-auto px-8 pt-6 flex flex-col items-center">
             <div class="w-full max-w-3xl flex flex-col gap-8">
                 <div id="qa-message-list" class="flex flex-col gap-6 hide-scrollbar">
@@ -88,11 +71,10 @@
                     <div class="flex items-start gap-1 max-w-[90%] {% if message.is_user %}self-end flex-row-reverse max-w-[85%]{% endif %}">
                         <div class="w-10 h-10 rounded-full flex items-center justify-center shrink-0 overflow-hidden {% if message.is_user %}bg-surface-container-high{% else %}bg-white border border-outline-variant/20{% endif %}">
                             {% if message.is_user %}
-                                {% if current_user_avatar %}
-                                <img src="{{ current_user_avatar }}" alt="{{ current_user.name }}" class="w-full h-full object-cover qa-message-icon text-on-surface-variant" />
+                                {% if current_user.avatar %}
+                                <img src="{{ current_user.avatar }}" alt="{{ current_user.name }}" class="w-full h-full object-cover qa-message-icon text-on-surface-variant" />
                                 {% else %}
-                                {# 沒有頭像（或只是 default-avatar: 佔位字串）時顯示預設圖示，避免破圖 #}
-                                <span class="material-symbols-outlined text-primary text-3xl">face_3</span>
+                                <img src="https://lh3.googleusercontent.com/a/ACg8ocKFsd9dOR3Oc1l9OJsr6rZVtxZaZoMtt8Bzp8JW42ZJ1VGmHg=s96-c" alt="CoLoGrowth" class="w-full h-full object-cover qa-message-icon text-on-surface-variant" />
                                 {% endif %}
                             {% else %}
                             <img src="/logo/LOGO 小圖.png" alt="LOGO" class="w-full h-full object-contain p-0.5" />
@@ -135,7 +117,7 @@
 {% endblock %}
 {% block extra_js %}
 <script>
-    const currentUserAvatarSrc = "{{ current_user_avatar|default:''|escapejs }}";
+    const currentUserAvatarSrc = "{{ current_user.avatar|default:''|escapejs }}";
     const currentUserName = "{{ current_user.name|default:'使用者'|escapejs }}";
 
     (function () {
@@ -147,8 +129,7 @@
         const messageList = document.getElementById('qa-message-list');
         const mainScroll = document.getElementById('qa-main-scroll');
         const questionInput = document.getElementById('qa-question-input');
-        const newConversationForm = document.getElementById('new-conversation-form');
-        const deleteForms = Array.from(document.querySelectorAll('.qa-delete-form'));
+        const newConversationForm = document.querySelector('#history-sidebar form');
         const botAvatarSrc = "/logo/LOGO 小圖.png";
 
         if (!sidebar || !overlay || !openButton || !closeButton || !chatForm || !messageList || !mainScroll || !questionInput) {
@@ -272,14 +253,14 @@
             });
         }
 
-        // 刪除對話前確認。這裡刻意使用固定文字，不把對話標題插進字串，避免 XSS。
-        deleteForms.forEach((form) => {
-            form.addEventListener('submit', (event) => {
-                if (!window.confirm('確定要刪除這個對話嗎？刪除後無法復原。')) {
-                    event.preventDefault();
-                }
-            });
-        });
+        try {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('new') === 'true') {
+                void requestNewConversation();
+            }
+        } catch (e) {
+            // ignore
+        }
 
         const buildMessageNode = (text, isUser) => {
             const wrapper = document.createElement('div');
@@ -364,10 +345,8 @@
 
         const appendMessage = (text, isUser) => {
             removeEmptyState();
-            const node = buildMessageNode(text, isUser);
-            messageList.appendChild(node);
+            messageList.appendChild(buildMessageNode(text, isUser));
             scrollMessagesToBottom();
-            return node;
         };
 
         const appendTypingMessage = () => {
@@ -379,13 +358,11 @@
             return typingNode;
         };
 
-        // 正式環境後端不會回傳 debug（只寫 server log），這裡只顯示通用訊息；
-        // 只有 DEBUG 模式才會拿到 debug 物件並顯示細節。
-        const formatErrorDetails = (data) => {
+        const formatErrorDetails = (data, rawBody, response) => {
             const parts = [];
 
             if (data?.error) {
-                parts.push(data.error);
+                parts.push(`錯誤訊息：${data.error}`);
             }
 
             if (data?.debug?.exception) {
@@ -402,10 +379,16 @@
 
             if (data?.debug?.response_body) {
                 parts.push(`n8n 回應：${data.debug.response_body}`);
+            } else if (rawBody && rawBody !== data?.error && rawBody !== data?.answer) {
+                parts.push(`原始回應：${rawBody}`);
+            }
+
+            if (!parts.length && response && !response.ok) {
+                parts.push(`HTTP 狀態：${response.status}`);
             }
 
             if (!parts.length) {
-                return 'AI 目前無法回覆，請稍後再試。';
+                return 'n8n 未回傳有效結果';
             }
 
             return parts.join('\n\n');
@@ -444,18 +427,10 @@
                 return;
             }
 
-            const userMessageNode = appendMessage(question, true);
+            appendMessage(question, true);
             questionInput.value = '';
             questionInput.focus();
             questionInput.disabled = true;
-
-            // 失敗時把問題放回輸入框，並移除剛剛的泡泡，讓使用者可以直接重送
-            const restoreQuestion = () => {
-                if (userMessageNode) {
-                    userMessageNode.remove();
-                }
-                questionInput.value = question;
-            };
             if (submitButton) {
                 submitButton.disabled = true;
             }
@@ -486,8 +461,7 @@
                     try {
                         data = JSON.parse(rawBody);
                     } catch (parseError) {
-                        // 後端一律回 JSON；解析不了代表是錯誤頁之類的東西，不要當成 AI 回答顯示
-                        data = { ok: false, error: '回應格式不正確，請稍後再試。' };
+                        data = { ok: response.ok, answer: rawBody };
                     }
                 } else {
                     data = { ok: response.ok };
@@ -495,13 +469,7 @@
 
                 if (!response.ok || data.ok === false) {
                     typingNode.remove();
-                    if (response.status === 401) {
-                        appendMessage('登入狀態已失效，請重新登入後再試。', false);
-                        restoreQuestion();
-                        return;
-                    }
-                    appendMessage(formatErrorDetails(data), false);
-                    restoreQuestion();
+                    appendMessage(formatErrorDetails(data, rawBody, response), false);
                     return;
                 }
 
@@ -517,13 +485,12 @@
                     conversationField.value = conversationId;
                 }
 
-                const answerText = data.answer || data.output || data.response || data.text || '目前資料庫沒有此資訊';
+                const answerText = data.answer || data.output || data.response || data.text || rawBody || '目前資料庫沒有此資訊';
                 typingNode.replaceWith(buildMessageNode(answerText, false));
                 scrollMessagesToBottom();
             } catch (error) {
                 typingNode.remove();
-                appendMessage('目前無法連線到伺服器，請稍後再試。', false);
-                restoreQuestion();
+                appendMessage(`目前無法連線到 n8n，請稍後再試。\n\n錯誤訊息：${error?.message || String(error)}`, false);
             } finally {
                 questionInput.disabled = false;
                 if (submitButton) {

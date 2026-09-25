@@ -4,9 +4,8 @@ from types import SimpleNamespace
 from django.shortcuts import render, redirect
 from django.utils import timezone
 
-from core.models import BabyInformation, BabyRecord, FamilyMember, PregnancyCase, PregnancyRecord
+from core.models import BabyRecord, FamilyMember, PregnancyCase, PregnancyRecord, UserProfile
 from views import join_request
-from .pregnancyrecords import records_for_case
 from views.pregnancycase import (
     get_lmp_date,
     is_pregnancy_ongoing,
@@ -15,11 +14,13 @@ from views.pregnancycase import (
     sync_active_selection_from_request,
 )
 from views.session_utils import get_current_user_profile
+from views.upload_utils import InvalidImageError, validate_image_upload
 from django.conf import settings
 import os
 from django.contrib import messages
+from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
 from django.db import IntegrityError
-from views import baby_utils
 
 
 # 圖片儲存目標目錄（相對於 BASE_DIR）
@@ -60,7 +61,7 @@ def _latest_weight_for_selection(request, user):
 
 def _build_selected_child_info(request, current_user):
     sync_active_selection_from_request(request, current_user)
-    today = timezone.now().date()
+    today = timezone.localdate()
     case = resolve_active_pregnancy_case(request, current_user)
 
     # 修正：先判斷 case 層級狀態。只要這個 case 底下還有寶寶沒出生，
@@ -128,19 +129,10 @@ def _build_selected_child_info(request, current_user):
     return None
 
 
-def userprofile(request):
-    current_user = get_current_user_profile(request)
-    if not current_user:
-        return redirect('login')
-
-    latest_weight = _latest_weight_for_selection(request, current_user)
-    selected_child_info = _build_selected_child_info(request, current_user)
-
+def build_family_context(request, current_user):
+    """整理「家庭成員」區塊要用的資料，個人資料頁與加入碼流程共用。"""
     case = resolve_active_pregnancy_case(request, current_user)
     family_members = []
-    pending_count = 0
-    pending_members = []
-    can_manage_helpers = False
     is_case_owner = False
     if case:
         family_members = list(
@@ -150,16 +142,8 @@ def userprofile(request):
             .order_by('join_time')
         )
         _annotate_family_roles(family_members, case_owner_id=case.user_id)
-        is_case_owner = bool(case and case.user_id == current_user.user_id)
-        can_manage_helpers = is_case_owner
-        if is_case_owner:
-            pending_reqs = join_request.get_pending_requests(case.pregnancycase_id)
-            pending_count = len(pending_reqs)
-            pending_members = pending_reqs
-        else:
-            pending_members = []
+        is_case_owner = (case.user_id == current_user.user_id)
         # 養育者永遠排第一，協助者也能看到誰是養育者
-        case.select_related('user') if hasattr(case, 'select_related') else None
         owner_user = getattr(case, 'user', None)
         if owner_user:
             owner_entry = SimpleNamespace(
@@ -170,17 +154,65 @@ def userprofile(request):
             )
             family_members = [owner_entry] + family_members
 
-    return render(request, 'user/userprofile.html', {
-        'current_user': current_user,
-        'latest_weight': latest_weight,
-        'selected_child_info': selected_child_info,
+    # 待審申請：列出目前使用者擁有的「所有」胎數的申請。
+    # 以前只看作用中的那一個 case，養育者有兩個以上胎數時，
+    # 其他胎數的申請永遠不會出現在任何頁面上，等於沒人審。
+    pending_members = [
+        SimpleNamespace(
+            applicant=req.user,
+            case=req.pregnancycase,
+            case_code=req.pregnancycase.code if req.pregnancycase else '',
+            case_id=req.pregnancycase_id,
+            join_time=req.join_time,
+        )
+        for req in join_request.get_requests_for_owner(current_user.user_id)
+    ]
+
+    # 自己送出、還在等待審核的申請（可以撤回）
+    my_join_requests = [
+        SimpleNamespace(
+            case=req.pregnancycase,
+            case_code=req.pregnancycase.code if req.pregnancycase else '',
+            case_id=req.pregnancycase_id,
+            owner_name=(req.pregnancycase.user.name if req.pregnancycase and req.pregnancycase.user else ''),
+            join_time=req.join_time,
+        )
+        for req in join_request.get_requests_by_applicant(current_user.user_id)
+    ]
+
+    # 自己身為協助者所加入的家庭（可以退出）
+    my_memberships = list(
+        FamilyMember.objects
+        .filter(user=current_user)
+        .select_related('pregnancycase', 'pregnancycase__user')
+        .order_by('join_time')
+    )
+
+    return {
         'family_members': family_members,
-        'pending_count': pending_count,
         'pending_members': pending_members,
-        'can_manage_helpers': can_manage_helpers,
+        'pending_count': len(pending_members),
+        'can_manage_helpers': is_case_owner,
         'is_case_owner': is_case_owner,
         'show_family_section': bool(case),
-    })
+        'my_join_requests': my_join_requests,
+        'my_memberships': my_memberships,
+    }
+
+
+def userprofile(request):
+    current_user = get_current_user_profile(request)
+    if not current_user:
+        return redirect('login')
+
+    context = {
+        'current_user': current_user,
+        'latest_weight': _latest_weight_for_selection(request, current_user),
+        'selected_child_info': _build_selected_child_info(request, current_user),
+    }
+    context.update(build_family_context(request, current_user))
+    return render(request, 'user/userprofile.html', context)
+
 
 def join_family(request):
     current_user = get_current_user_profile(request)
@@ -191,77 +223,25 @@ def join_family(request):
         return redirect('profile')
 
     join_code = request.POST.get('join_code', '').strip()
-    join_error = None
-    join_success = None
 
     if not join_code:
-        join_error = '請輸入加入碼'
+        messages.error(request, '請輸入加入碼')
     else:
         case = PregnancyCase.objects.filter(code=join_code).first()
         if not case:
-            join_error = f'找不到加入碼「{join_code}」，請確認是否正確'
+            messages.error(request, f'找不到加入碼「{join_code}」，請確認是否正確')
+        elif case.user_id == current_user.user_id:
+            messages.error(request, '您是此胎數的建立者，無需申請。')
+        elif FamilyMember.objects.filter(pregnancycase_id=case, user_id=current_user).exists():
+            messages.info(request, '您已經是此胎數的協助者了')
+        elif join_request.has_pending_request(case.pregnancycase_id, current_user.user_id):
+            messages.info(request, '您已送出加入申請，請等待養育者審核同意。')
         else:
-            if case.user == current_user:
-                join_error = '您是此胎數的建立者，無需申請。'
-            else:
-                membership = FamilyMember.objects.filter(
-                    pregnancycase_id=case,
-                    user_id=current_user
-                ).first()
-                if membership:
-                    join_success = '您已經是此胎數的協助者了'
-                elif join_request.has_pending_request(case.pregnancycase_id, current_user.user_id):
-                    join_success = '您已送出加入申請，請等待養育者審核同意。'
-                else:
-                    join_request.add_request(case.pregnancycase_id, current_user.user_id)
-                    join_success = '已成功送出加入申請，請等待養育者審核同意！'
+            join_request.add_request(case.pregnancycase_id, current_user.user_id)
+            messages.success(request, '已成功送出加入申請，請等待養育者審核同意！')
 
-    latest_weight = _latest_weight_for_selection(request, current_user)
-    selected_child_info = _build_selected_child_info(request, current_user)
-    active_case = resolve_active_pregnancy_case(request, current_user)
-    family_members = []
-    pending_count = 0
-    pending_members = []
-    can_manage_helpers = False
-    is_case_owner = False
-    if active_case:
-        family_members = list(
-            FamilyMember.objects
-            .filter(pregnancycase_id=active_case)
-            .select_related('user')
-            .order_by('join_time')
-        )
-        _annotate_family_roles(family_members, case_owner_id=active_case.user_id)
-        is_case_owner = (active_case.user_id == current_user.user_id)
-        can_manage_helpers = is_case_owner
-        if can_manage_helpers:
-            pending_reqs = join_request.get_pending_requests(active_case.pregnancycase_id)
-            pending_count = len(pending_reqs)
-            pending_members = pending_reqs
-        # 養育者永遠排第一
-        owner_user = getattr(active_case, 'user', None)
-        if owner_user:
-            owner_entry = SimpleNamespace(
-                user=owner_user,
-                role_label='養育者',
-                is_owner_member=True,
-                familymember_id=None,
-            )
-            family_members = [owner_entry] + family_members
-
-    return render(request, 'user/userprofile.html', {
-        'current_user': current_user,
-        'latest_weight': latest_weight,
-        'selected_child_info': selected_child_info,
-        'family_members': family_members,
-        'join_error': join_error,
-        'join_success': join_success,
-        'pending_count': pending_count,
-        'pending_members': pending_members,
-        'can_manage_helpers': can_manage_helpers,
-        'is_case_owner': is_case_owner,
-        'show_family_section': bool(active_case),
-    })
+    # PRG：處理完一律 redirect，避免重新整理重送申請
+    return redirect('profile')
 
 
 def edit_userprofile(request):
@@ -274,6 +254,52 @@ def edit_userprofile(request):
     })
 
 
+def _validated_email_change(request, current_user, raw_email):
+    """檢查要寫入的 email。
+
+    回傳 (是否通過, 要寫入的 email)。email 沒有變更時直接通過、不做任何檢查，
+    避免既有的 LINE 佔位信箱使用者一存檔就被擋住。
+
+    為什麼要檢查：登入流程是用 email 認人（見 views/login.py），
+    這裡若讓任何人隨便填別人的 email，下次對方登入就會登進這個帳號；
+    填空或填錯則會讓自己下次登入變成新帳號、原本的紀錄全部失聯。
+    """
+    email = (raw_email or '').strip()
+    current = (current_user.email or '').strip()
+
+    if email.lower() == current.lower():
+        return True, current  # 沒有變更
+
+    if not email:
+        messages.error(request, '電子郵件不可空白，這是您下次登入時辨識身分的依據。')
+        return False, current
+
+    if len(email) > 100:
+        messages.error(request, '電子郵件長度不可超過 100 個字元。')
+        return False, current
+
+    try:
+        validate_email(email)
+    except ValidationError:
+        messages.error(request, '電子郵件格式不正確。')
+        return False, current
+
+    if email.lower().endswith(UserProfile.LINE_PLACEHOLDER_EMAIL_SUFFIX):
+        messages.error(request, '這是系統保留的網域，請填寫您真正的電子郵件。')
+        return False, current
+
+    if (
+        UserProfile.objects
+        .filter(email__iexact=email)
+        .exclude(user_id=current_user.user_id)
+        .exists()
+    ):
+        messages.error(request, '這個電子郵件已被其他帳號使用。')
+        return False, current
+
+    return True, email
+
+
 def update_profile(request):
     current_user = get_current_user_profile(request)
     if not current_user:
@@ -283,62 +309,48 @@ def update_profile(request):
         return redirect('edit_userprofile')
 
     name = request.POST.get('name', '').strip()
-    email = request.POST.get('email', '').strip()
     avatar_file = request.FILES.get('avatar_file')
 
+    email_ok, email_value = _validated_email_change(request, current_user, request.POST.get('email'))
+    if not email_ok:
+        # email 是登入身分的依據，驗證沒過就整筆不存，避免只存到一半
+        return redirect('edit_userprofile')
+
     if name:
-        current_user.name = name
-    current_user.email = email or ''
+        current_user.name = name[:20]
+    current_user.email = email_value
 
     if avatar_file:
         try:
-            # 確保目標目錄存在
+            # 前端的 accept="image/*" 擋不住 curl，一律由後端依檔頭決定副檔名
+            extension = validate_image_upload(avatar_file)
+
             os.makedirs(AVATAR_SAVE_DIR, exist_ok=True)
 
-            # 固定檔名為 user_id.jpg，每次上傳直接覆蓋舊檔
-            filename = f'{current_user.user_id}.jpg'
+            # 檔名固定用 user_id（不採用使用者提供的檔名），每次上傳覆蓋舊檔
+            filename = f'{current_user.user_id}{extension}'
             save_path = os.path.join(AVATAR_SAVE_DIR, filename)
 
-            # 寫入檔案
+            avatar_file.seek(0)
             with open(save_path, 'wb') as f:
                 for chunk in avatar_file.chunks():
                     f.write(chunk)
 
             current_user.avatar = AVATAR_URL_PREFIX + filename
 
-        except Exception as e:
+        except InvalidImageError as e:
             messages.error(request, f'上傳頭像失敗：{e}')
+            return redirect('edit_userprofile')
+        except Exception:
+            messages.error(request, '上傳頭像失敗，請稍後再試。')
+            return redirect('edit_userprofile')
 
     try:
         current_user.save()
         messages.success(request, '個人資料已儲存')
-    except IntegrityError as ie:
-        messages.error(request, f'儲存失敗：{ie}')
-    except Exception as e:
-        messages.error(request, f'儲存發生錯誤：{e}')
+    except IntegrityError:
+        messages.error(request, '儲存失敗：資料與其他帳號重複，請確認電子郵件或頭像。')
+    except Exception:
+        messages.error(request, '儲存發生錯誤，請稍後再試。')
 
     return redirect('profile')
-
-def login_page(request):
-    return render(request, 'userprofile.html', {
-        'line_login_url': _safe_line_login_url(),
-    })
-
-import logging
-logger = logging.getLogger(__name__)
-from allauth.socialaccount.models import SocialApp
-
-def _safe_line_login_url():
-    """Return the LINE login route only when there is exactly one configured LINE SocialApp.
-
-    The allauth template tag `provider_login_url 'line'` raises `MultipleObjectsReturned`
-    when duplicate `SocialApp` rows exist for the same provider. This guard keeps the page
-    from crashing while still allowing the normal route when configuration is valid.
-    """
-    try:
-        if SocialApp.objects.filter(provider='line').count() != 1:
-            return ''
-    except Exception:
-        logger.exception('Unable to resolve LINE SocialApp while building login page')
-        return ''
-    return '/accounts/line/login/'

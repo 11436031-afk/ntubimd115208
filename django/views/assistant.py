@@ -10,11 +10,19 @@ from django.shortcuts import redirect, render
 
 from core.models import BabyInformation
 from views.session_utils import get_current_user_profile
+from views.health_safety import (
+    MEDICAL_DISCLAIMER,
+    check_rate_limit,
+    prepend_emergency_notice,
+    validate_question_length,
+)
 
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_ASSISTANT_WEBHOOK_URL = "https://kathy1023.app.n8n.cloud/webhook/CoLoGrowth"
+
+RATE_LIMIT_SESSION_KEY = "assistant_rate_limit_timestamps"
 
 
 def _get_webhook_url():
@@ -170,6 +178,15 @@ def _post_to_n8n(question, user_id):
         return None, "呼叫成長評估助手時發生錯誤，請稍後再試。"
 
 
+def _get_born_babies(current_user):
+    """登入者可以存取（養育者或協助者）且已出生的寶寶。"""
+    return BabyInformation.objects.filter(
+        Q(pregnancycase__user=current_user)
+        | Q(pregnancycase__familymember__user=current_user),
+        birthdaytime__isnull=False,
+    ).select_related("pregnancycase").distinct().order_by("birthdaytime", "baby_id")
+
+
 def assistant(request):
     current_user = get_current_user_profile(request)
     if not current_user:
@@ -181,24 +198,57 @@ def assistant(request):
         question = request.POST.get("question", "").strip()
         if not question:
             return JsonResponse({"ok": False, "error": "請輸入問題。"}, status=400)
-        answer, error_message = _post_to_n8n(question, current_user.user_id)
+
+        length_error = validate_question_length(question)
+        if length_error:
+            return JsonResponse({"ok": False, "error": length_error}, status=400)
+
+        rate_error = check_rate_limit(request, RATE_LIMIT_SESSION_KEY)
+        if rate_error:
+            logger.info("Assistant rate limit hit for user %s", current_user.user_id)
+            return JsonResponse({"ok": False, "error": rate_error}, status=429)
+
+        # 寶寶名稱一律由後端組出來，前端只能指定 baby_id，且必須屬於登入者
+        raw_baby_id = request.POST.get("baby_id", "").strip()
+        if not raw_baby_id:
+            return JsonResponse({"ok": False, "error": "請先選擇寶寶。"}, status=400)
+
+        try:
+            baby_id = int(raw_baby_id)
+        except (TypeError, ValueError):
+            return JsonResponse({"ok": False, "error": "寶寶資料有誤，請重新選擇。"}, status=400)
+
+        baby = _get_born_babies(current_user).filter(baby_id=baby_id).first()
+        if not baby:
+            logger.warning(
+                "User %s requested assistant for baby %s that is not theirs",
+                current_user.user_id,
+                baby_id,
+            )
+            return JsonResponse({"ok": False, "error": "找不到這個寶寶，或它不屬於你。"}, status=403)
+
+        # n8n 目前依賴的欄位不變，只是問題前面的寶寶名稱改由後端串
+        full_question = f"{baby.name}{question}"
+
+        answer, error_message = _post_to_n8n(full_question, current_user.user_id)
         if error_message:
             return JsonResponse({"ok": False, "error": error_message}, status=502)
+
+        answer, red_flags = prepend_emergency_notice(answer, question)
+        if red_flags:
+            logger.info("Assistant red flag keywords matched: %s", red_flags)
+
         return JsonResponse({"ok": True, "answer": answer})
 
-    born_babies = BabyInformation.objects.filter(
-        Q(pregnancycase__user=current_user)
-        | Q(pregnancycase__familymember__user=current_user),
-        birthdaytime__isnull=False,
-    ).select_related("pregnancycase").distinct().order_by("birthdaytime", "baby_id")
     assistant_babies = [
         {
             "baby": baby,
             "role": "養育者" if baby.pregnancycase.user_id == current_user.user_id else "協助者",
         }
-        for baby in born_babies
+        for baby in _get_born_babies(current_user)
     ]
     return render(request, "base/assistant.html", {
         "current_user": current_user,
         "assistant_babies": assistant_babies,
+        "medical_disclaimer": MEDICAL_DISCLAIMER,
     })

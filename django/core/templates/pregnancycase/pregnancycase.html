@@ -60,7 +60,7 @@
                             <button onclick="window.location.href='/edit_pregnancy_case/?id={{ case.pregnancycase_id }}'" class="p-2 hover:bg-primary/10 rounded-full text-primary transition-colors cursor-pointer" title="編輯孕期">
                                 <span class="material-symbols-outlined text-[20px]">edit</span>
                             </button>
-                            <form method="post" action="{% url 'pregnancy_case' %}" style="display:contents" onsubmit="return confirm('確定要刪除此懷孕紀錄嗎？此動作無法復原。');">
+                            <form method="post" action="{% url 'pregnancy_case' %}" style="display:contents" class="js-delete-case-form">
                                 {% csrf_token %}
                                 <input type="hidden" name="delete_id" value="{{ case.pregnancycase_id }}">
                                 <button type="submit" class="p-2 hover:bg-primary/10 rounded-full text-primary transition-colors cursor-pointer">
@@ -102,7 +102,17 @@
                             <button onclick="window.location.href='/edit_pregnancy_case/?id={{ baby.case_id_for_edit  }}'" class="p-2 hover:bg-primary/10 rounded-full text-primary transition-colors cursor-pointer" title="編輯孕期">
                                 <span class="material-symbols-outlined text-[20px]">edit</span>
                             </button>
-                            <form method="post" action="{% url 'delete_baby_information' %}" style="display:contents" onsubmit="return confirm('確定要刪除「{{ baby.name }}」嗎？此動作無法復原。');">
+                            <a href="{% url 'add_baby_information' %}?case_id={{ baby.case_id_for_edit }}" class="p-2 hover:bg-primary/10 rounded-full text-primary transition-colors cursor-pointer" title="為這一胎新增寶寶（雙胞胎／多胞胎）">
+                                <span class="material-symbols-outlined text-[20px]">person_add</span>
+                            </a>
+                            <!--
+                                安全性：不可把 {{ baby.name }} 直接寫進 onsubmit 的 JS 字串。
+                                HTML 屬性內的 &#x27; 會先被瀏覽器解碼再交給 JS 解析，
+                                名字填 ');alert(1)// 就能執行任意程式碼。
+                                改用 data-baby-name 屬性 + 腳本讀 dataset 組字串。
+                            -->
+                            <form method="post" action="{% url 'delete_baby_information' %}" style="display:contents"
+                                  class="js-delete-baby-form" data-baby-name="{{ baby.name }}">
                                 {% csrf_token %}
                                 <input type="hidden" name="baby_id" value="{{ baby.baby_id }}">
                                 <button type="submit" class="p-2 hover:bg-primary/10 rounded-full text-primary transition-colors cursor-pointer">
@@ -124,4 +134,26 @@
 
     </main>
 </div>
+{% endblock %}
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // 刪除確認一律由 JS 讀 dataset 組字串，名字不會進入任何 HTML 屬性的程式碼字串
+        document.querySelectorAll('.js-delete-baby-form').forEach(function (form) {
+            form.addEventListener('submit', function (event) {
+                var name = form.dataset.babyName || '這位嬰幼兒';
+                if (!window.confirm('確定要刪除「' + name + '」嗎？此動作無法復原。')) {
+                    event.preventDefault();
+                }
+            });
+        });
+        document.querySelectorAll('.js-delete-case-form').forEach(function (form) {
+            form.addEventListener('submit', function (event) {
+                if (!window.confirm('確定要刪除此懷孕紀錄嗎？此動作無法復原。')) {
+                    event.preventDefault();
+                }
+            });
+        });
+    });
+</script>
 {% endblock %}

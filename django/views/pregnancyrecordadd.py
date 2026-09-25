@@ -5,14 +5,21 @@ from django.db import ProgrammingError, transaction
 from django.utils import timezone
 import datetime
 import calendar
-from pathlib import Path
 
 from core.models import Feeling, PhysicalCondition, PregnancyRecord, Prenatalrecord, Userfeeling, Userphysicalcondition, PregnancyCase, UserProfile
 from .pregnancyrecords import records_for_case
 from views.pregnancycase import resolve_active_pregnancy_case, url_with_active_selection
 from views.session_utils import get_current_user_profile
 from views import baby_utils
+from views.upload_utils import InvalidImageError, safe_image_name, validate_image_upload
 from core.models import FamilyMember
+
+
+# ── 產檢欄位的合理範圍（超出範圍不只是資料髒，SmallInt 還會溢位造成 500）──
+SBP_RANGE = (60, 250)
+DBP_RANGE = (30, 150)
+FETAL_HEART_RATE_RANGE = (50, 220)
+WEIGHT_RANGE = (20.0, 200.0)
 
 
 def _records_for_scope(pregnancy_case, current_user):
@@ -25,7 +32,13 @@ def _records_for_scope(pregnancy_case, current_user):
     return PregnancyRecord.objects.none()
 
 
-def _get_unique_record_for_date(pregnancy_case, current_user, selected_date):
+def _get_unique_record_for_date(pregnancy_case, current_user, selected_date, merge_duplicates=False):
+    """取得某一天的紀錄。
+
+    merge_duplicates=False（預設，GET 讀取頁面時使用）只讀最新一筆，不動資料；
+    只有 POST 真正要寫入時才傳 True 去合併（刪除）重複紀錄，
+    避免單純瀏覽頁面就無聲刪除使用者資料。
+    """
     if not current_user:
         return None
 
@@ -38,11 +51,34 @@ def _get_unique_record_for_date(pregnancy_case, current_user, selected_date):
         return None
 
     primary_record = records[0]
+    if not merge_duplicates:
+        return primary_record
+
     duplicate_ids = [record.pregnancyrecord_id for record in records[1:]]
     if duplicate_ids:
+        _delete_prenatal_records_for(duplicate_ids)
         PregnancyRecord.objects.filter(pregnancyrecord_id__in=duplicate_ids).delete()
 
     return primary_record
+
+
+def _record_in_scope(pregnancy_case, current_user, record_id):
+    """只在「目前個案／使用者」的歸屬範圍內尋找紀錄。
+
+    安全性修正：原本直接用 pregnancyrecord_id 查詢，任何登入者換個 id
+    就能讀取、修改甚至刪除別人的孕期紀錄。
+    """
+    if not current_user or not record_id:
+        return None
+    try:
+        record_id = int(record_id)
+    except (TypeError, ValueError):
+        return None
+    return (
+        _records_for_scope(pregnancy_case, current_user)
+        .filter(pregnancyrecord_id=record_id)
+        .first()
+    )
 
 
 FEELING_EMOJI_MAP = {
@@ -73,11 +109,13 @@ MARKER_LABEL_TO_VALUE = {value: key for key, value in MARKER_VALUE_MAP.items()}
 def _save_prenatal_photo(image_file):
     if not image_file:
         return ''
+    # 副檔名與檔名都不採用使用者輸入，避免 .html / .svg 造成儲存型 XSS
+    ext = validate_image_upload(image_file)
     storage = FileSystemStorage(
         location=settings.BASE_DIR / 'core' / 'static' / 'media',
         base_url='/static/media/',
     )
-    filename = storage.save(f'prenatalrecord/{image_file.name}', image_file)
+    filename = storage.save(f'prenatalrecord/{safe_image_name(ext)}', image_file)
     return storage.url(filename)
 
 
@@ -95,29 +133,65 @@ def _delete_prenatal_photo(photo_url):
         relative_name = relative_name[len('static/media/'):]
     elif relative_name.startswith('/static/'):
         relative_name = relative_name[len('/static/'):]
-    if relative_name:
-        storage.delete(relative_name.lstrip('/'))
+    relative_name = relative_name.lstrip('/')
+    # 只允許刪除 prenatalrecord/ 底下的檔案；photo 欄位是資料庫字串，
+    # 若被塞入 ../ 或其他目錄，這裡必須擋掉，不能讓它刪到別的檔案。
+    if not relative_name.startswith('prenatalrecord/'):
+        return
+    if '..' in relative_name.replace('\\', '/').split('/'):
+        return
+    storage.delete(relative_name)
+
+
+def _delete_prenatal_records_for(pregnancyrecord_ids):
+    """刪除產檢紀錄時一併清掉實體照片檔，避免 media 目錄堆積孤兒檔案。"""
+    if not pregnancyrecord_ids:
+        return
+    rows = Prenatalrecord.objects.filter(pregnancyrecord_id__in=pregnancyrecord_ids)
+    for photo in rows.values_list('photo', flat=True):
+        _delete_prenatal_photo(photo)
+    rows.delete()
 
 
 def _store_prenatal_photo(image_file, prenatalrecord_id, existing_photo=''):
     if not image_file or not prenatalrecord_id:
         return existing_photo or ''
 
+    # 安全性修正：副檔名一律由檔案內容決定，不採用使用者檔名。
+    # 舊版接受任意副檔名並存進 /static/media/，上傳 .html / .svg 即成儲存型 XSS。
+    ext = validate_image_upload(image_file)
+
     storage = FileSystemStorage(
         location=settings.BASE_DIR / 'core' / 'static' / 'media',
         base_url='/static/media/',
     )
     _delete_prenatal_photo(existing_photo)
-    suffix = Path(image_file.name).suffix.lower()
-    filename = storage.save(f'prenatalrecord/{prenatalrecord_id}{suffix}', image_file)
+    filename = storage.save(f'prenatalrecord/{prenatalrecord_id}{ext}', image_file)
     return storage.url(filename)
+
+
+def _parse_int_in_range(raw_value, value_range, label, errors):
+    """解析整數欄位並檢查範圍；不合法時把訊息塞進 errors 並回傳 None。"""
+    raw_value = (raw_value or '').strip() if isinstance(raw_value, str) else raw_value
+    if raw_value in (None, ''):
+        return None
+    try:
+        value = int(raw_value)
+    except (TypeError, ValueError):
+        errors.append(f'{label}請填寫整數。')
+        return None
+    low, high = value_range
+    if not (low <= value <= high):
+        errors.append(f'{label}合理範圍為 {low} ~ {high}。')
+        return None
+    return value
 
 
 def _parse_selected_date(raw_value):
     try:
-        return datetime.date.fromisoformat(raw_value) if raw_value else datetime.date.today()
+        return datetime.date.fromisoformat(raw_value) if raw_value else timezone.localdate()
     except Exception:
-        return datetime.date.today()
+        return timezone.localdate()
 
 
 def _date_to_safe_datetime(date_value):
@@ -129,16 +203,20 @@ def _date_to_safe_datetime(date_value):
 
 def pregnancyrecord(request):
     current_user = get_current_user_profile(request)
-    pregnancy_case = resolve_active_pregnancy_case(request, current_user) if current_user else None
+    # 未登入不可瀏覽（middleware 只是安全網，各 view 仍要自己檢查）
+    if not current_user:
+        return redirect('login')
 
-    if pregnancy_case and current_user and pregnancy_case.user_id != current_user.user_id:
+    pregnancy_case = resolve_active_pregnancy_case(request, current_user)
+
+    if pregnancy_case and pregnancy_case.user_id != current_user.user_id:
         membership = FamilyMember.objects.filter(pregnancycase=pregnancy_case, user=current_user).first()
         if not baby_utils.has_permission(membership, 'mom_records', 'view'):
             return redirect('/userprofile/?perm_error=mom_records')
 
     raw = request.GET.get('date')
 
-    today_date = datetime.date.today()
+    today_date = timezone.localdate()
 
     try:
         selected_date = datetime.date.fromisoformat(raw) if raw else None
@@ -404,20 +482,12 @@ def pregnancyrecord_add(request):
 
     selected_date = _parse_selected_date(request.GET.get('date') or request.POST.get('check_date'))
 
-    preg_from_get = None
-    preg_id_get = request.GET.get('record_id')
-    if preg_id_get:
-        try:
-            preg_id_int = int(preg_id_get)
-        except Exception:
-            preg_id_int = None
-        if preg_id_int:
-            preg_from_get = PregnancyRecord.objects.filter(pregnancyrecord_id=preg_id_int).first()
-            if preg_from_get:
-                try:
-                    selected_date = preg_from_get.check_date.date()
-                except Exception:
-                    pass
+    # 安全性修正：?record_id= 只在自己（或目前個案）的歸屬範圍內尋找，
+    # 找不到就當作沒有這筆，不再讓任何登入者讀到別人的紀錄。
+    preg_from_get = _record_in_scope(pregnancy_case, current_user, request.GET.get('record_id'))
+    if preg_from_get and preg_from_get.check_date:
+        # check_date 是 DateField，沒有 .date()；直接使用即可
+        selected_date = preg_from_get.check_date
 
     if preg_from_get:
         selected_day_record = preg_from_get
@@ -436,35 +506,103 @@ def pregnancyrecord_add(request):
             return redirect(url_with_active_selection(
                 request, '/pregnancyrecord/', {'date': selected_date.isoformat()}
             ))
-        with transaction.atomic():
-            weight = request.POST.get('weight') or None
-            record = request.POST.get('record') or ''
-            official_record_enabled = request.POST.get('official_record') in ('1', 'on', 'true', 'True')
 
+        today_date = timezone.localdate()
+        record = request.POST.get('record') or ''
+        official_record_enabled = request.POST.get('official_record') in ('1', 'on', 'true', 'True')
+        urine_glucose_raw = request.POST.get('urine_glucose') or ''
+        urine_protein_raw = request.POST.get('urine_protein') or ''
+        edema_raw = request.POST.get('edema') or ''
+        urine_glucose = MARKER_VALUE_MAP.get(urine_glucose_raw, '')
+        urine_protein = MARKER_VALUE_MAP.get(urine_protein_raw, '')
+        edema = MARKER_VALUE_MAP.get(edema_raw, '')
+        uploaded_photo = request.FILES.get('photo')
+        weight_raw = (request.POST.get('weight') or '').strip()
+
+        # ── 先驗證，通過才寫入；任何一項失敗都回到表單顯示錯誤並保留輸入 ──
+        errors = []
+
+        if selected_date > today_date:
+            errors.append('紀錄日期不能是未來日期。')
+
+        weight_val = None
+        if weight_raw:
             try:
-                weight_val = float(weight) if weight not in (None, '') else None
+                weight_val = float(weight_raw)
             except ValueError:
-                weight_val = None
+                errors.append('體重請填寫數字。')
+            else:
+                lo, hi = WEIGHT_RANGE
+                if not (lo <= weight_val <= hi):
+                    weight_val = None
+                    errors.append(f'體重合理範圍為 {lo:g} ~ {hi:g} kg。')
 
-            orig_id = request.POST.get('record_id')
-            preg = None
-            if orig_id:
+        sbp_val = dbp_val = fetal_val = None
+        if official_record_enabled:
+            sbp_val = _parse_int_in_range(request.POST.get('sbp'), SBP_RANGE, '收縮壓', errors)
+            dbp_val = _parse_int_in_range(request.POST.get('dbp'), DBP_RANGE, '舒張壓', errors)
+            fetal_val = _parse_int_in_range(
+                request.POST.get('fetal_heart_rate'), FETAL_HEART_RATE_RANGE, '胎心率', errors
+            )
+            if uploaded_photo:
                 try:
-                    orig_id_int = int(orig_id)
-                except Exception:
-                    orig_id_int = None
-                if orig_id_int:
-                    preg = PregnancyRecord.objects.filter(pregnancyrecord_id=orig_id_int).first()
+                    validate_image_upload(uploaded_photo)
+                except InvalidImageError as exc:
+                    errors.append(str(exc))
+
+        if errors:
+            return render(request, 'pregnancy/pregnancyrecordadd.html', {
+                'feelings': _build_feelings(),
+                'physical_conditions': _build_physical_conditions(),
+                'selected_date': selected_date,
+                'selected_date_iso': selected_date.isoformat(),
+                'today_iso': today_date.isoformat(),
+                'selected_month_abbr': selected_date.strftime('%b').upper(),
+                'selected_day': selected_date.day,
+                'form_weight': weight_raw,
+                'form_record': record,
+                'form_fetal_heart_rate': request.POST.get('fetal_heart_rate') or '',
+                'form_sbp': request.POST.get('sbp') or '',
+                'form_dbp': request.POST.get('dbp') or '',
+                'form_urine_glucose': urine_glucose_raw,
+                'form_urine_protein': urine_protein_raw,
+                'form_edema': edema_raw,
+                'form_photo_url': (
+                    selected_day_prenatal.photo
+                    if selected_day_prenatal and selected_day_prenatal.photo else ''
+                ),
+                'selected_day_feeling_ids': [
+                    int(fid) for fid in request.POST.getlist('feelings') if fid.isdigit()
+                ],
+                'selected_day_physical_condition_ids': [
+                    int(pid) for pid in request.POST.getlist('physical_conditions') if pid.isdigit()
+                ],
+                'has_prenatalrecord': official_record_enabled,
+                'submit_button_text': '更新紀錄' if selected_day_record else '完成並儲存紀錄',
+                'selected_day_record_id': (
+                    selected_day_record.pregnancyrecord_id if selected_day_record else None
+                ),
+                'error': '；'.join(errors),
+            })
+
+        with transaction.atomic():
+            # 安全性修正：record_id 一律在歸屬範圍內尋找，
+            # 找不到就當成新增，避免改到／刪到別人的紀錄。
+            preg = _record_in_scope(pregnancy_case, current_user, request.POST.get('record_id'))
 
             check_datetime = _date_to_safe_datetime(selected_date)
 
             if preg:
-                conflict_record = _get_unique_record_for_date(pregnancy_case, current_user, selected_date)
+                conflict_record = _get_unique_record_for_date(
+                    pregnancy_case, current_user, selected_date, merge_duplicates=True
+                )
                 if conflict_record and conflict_record.pregnancyrecord_id != preg.pregnancyrecord_id:
                     conflict_record.record = record
                     conflict_record.weight = weight_val
                     conflict_record.check_date = check_datetime
                     conflict_record.save(update_fields=['check_date', 'record', 'weight'])
+                    # 併入另一筆前先清掉這筆的產檢照片實體檔
+                    _delete_prenatal_records_for([preg.pregnancyrecord_id])
                     preg.delete()
                     preg = conflict_record
                 else:
@@ -473,15 +611,19 @@ def pregnancyrecord_add(request):
                     preg.weight = weight_val
                     preg.save(update_fields=['check_date', 'record', 'weight'])
             else:
-                selected_day_record = _get_unique_record_for_date(pregnancy_case, current_user, selected_date)
+                selected_day_record = _get_unique_record_for_date(
+                    pregnancy_case, current_user, selected_date, merge_duplicates=True
+                )
                 if selected_day_record:
                     preg = selected_day_record
                     preg.record = record
                     preg.weight = weight_val
                     preg.save(update_fields=['record', 'weight'])
                 else:
+                    # 修正：協助者新增時若寫成自己的 user，records_for_case
+                    # 一律以個案擁有者過濾，紀錄存進去會立刻從畫面上消失。
                     preg = PregnancyRecord.objects.create(
-                        user=current_user,
+                        user=pregnancy_case.user if pregnancy_case else current_user,
                         check_date=check_datetime,
                         record=record,
                         weight=weight_val,
@@ -489,24 +631,6 @@ def pregnancyrecord_add(request):
 
             if preg and getattr(preg, 'check_date', None):
                 selected_date = preg.check_date.date() if hasattr(preg.check_date, 'date') else preg.check_date
-
-            sbp = request.POST.get('sbp')
-            dbp = request.POST.get('dbp')
-            fetal = request.POST.get('fetal_heart_rate')
-            urine_glucose_raw = request.POST.get('urine_glucose') or ''
-            urine_protein_raw = request.POST.get('urine_protein') or ''
-            edema_raw = request.POST.get('edema') or ''
-            urine_glucose = MARKER_VALUE_MAP.get(urine_glucose_raw, '')
-            urine_protein = MARKER_VALUE_MAP.get(urine_protein_raw, '')
-            edema = MARKER_VALUE_MAP.get(edema_raw, '')
-
-            uploaded_photo = request.FILES.get('photo')
-
-            def to_int(v):
-                try:
-                    return int(v) if v not in (None, '') else None
-                except ValueError:
-                    return None
 
             if official_record_enabled:
                 latest_prenatal = (
@@ -518,9 +642,9 @@ def pregnancyrecord_add(request):
                 existing_photo = latest_prenatal.photo if latest_prenatal else ''
 
                 if latest_prenatal:
-                    latest_prenatal.sbp = to_int(sbp) or 0
-                    latest_prenatal.dbp = to_int(dbp) or 0
-                    latest_prenatal.fetal_heart_rate = to_int(fetal) or 0
+                    latest_prenatal.sbp = sbp_val or 0
+                    latest_prenatal.dbp = dbp_val or 0
+                    latest_prenatal.fetal_heart_rate = fetal_val or 0
                     latest_prenatal.urine_glucose = urine_glucose
                     latest_prenatal.urine_protein = urine_protein
                     latest_prenatal.edema = edema
@@ -534,9 +658,9 @@ def pregnancyrecord_add(request):
                 else:
                     latest_prenatal = Prenatalrecord.objects.create(
                         pregnancyrecord=preg,
-                        sbp=to_int(sbp) or 0,
-                        dbp=to_int(dbp) or 0,
-                        fetal_heart_rate=to_int(fetal) or 0,
+                        sbp=sbp_val or 0,
+                        dbp=dbp_val or 0,
+                        fetal_heart_rate=fetal_val or 0,
                         urine_glucose=urine_glucose,
                         urine_protein=urine_protein,
                         edema=edema,
@@ -550,7 +674,8 @@ def pregnancyrecord_add(request):
                         )
                         latest_prenatal.save(update_fields=['photo'])
             else:
-                Prenatalrecord.objects.filter(pregnancyrecord=preg).delete()
+                # 關閉產檢紀錄時一併清掉實體照片檔
+                _delete_prenatal_records_for([preg.pregnancyrecord_id])
 
             # ─── 終極修正：改用原生先刪後蓋（Purge & Re-insert）處理特殊關聯表 ───
             feelings_selected = request.POST.getlist('feelings')
@@ -603,7 +728,7 @@ def pregnancyrecord_add(request):
         'physical_conditions': _build_physical_conditions(),
         'selected_date': selected_date,
         'selected_date_iso': selected_date.isoformat(),
-        'today_iso': datetime.date.today().isoformat(),
+        'today_iso': timezone.localdate().isoformat(),
         'selected_month_abbr': selected_date.strftime('%b').upper(),
         'selected_day': selected_date.day,
         'form_weight': selected_day_record.weight if selected_day_record else '',
