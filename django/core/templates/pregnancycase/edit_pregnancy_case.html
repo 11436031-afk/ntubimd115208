@@ -14,14 +14,6 @@
                 <span class="text-lg font-bold text-primary">編輯懷孕紀錄</span>
             </a>
         </div>
-        <form method="post" action="{% url 'pregnancy_case' %}" style="display:contents" onsubmit="return confirm('確定要刪除此懷孕紀錄嗎？此動作無法復原。');">
-            {% csrf_token %}
-            <input type="hidden" name="delete_id" value="{{ case.pregnancycase_id }}">
-            <button type="submit" class="text-primary font-bold text-sm hover:bg-primary/10 px-3 py-1.5 rounded-full transition-colors cursor-pointer flex items-center gap-1">
-                <span class="material-symbols-outlined text-[18px]">delete</span>
-                刪除
-            </button>
-        </form>
     </div>
 
     <!-- Main Content -->
@@ -152,7 +144,6 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'js/pregnancy_due_date.js' %}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         document.querySelectorAll('input[name^="birthdaytime_"]').forEach(function (birthdayInput) {
@@ -167,13 +158,28 @@
             birthdayInput.addEventListener('change', syncGenderRequirement);
             syncGenderRequirement();
         });
-        if (window.PregnancyDueDate) {
-            PregnancyDueDate.bindPregnancyDatePair(
-                document.getElementById('pregnancy-case-form'),
-                document.getElementById('menstruation-input'),
-                document.getElementById('expecteddate-input'),
-                { forceSync: true }   // 編輯頁：改 LMP 後強制重算預產期
-            );
+
+        // ── 最後月經日期 ↔ 預產期 互相推算（40 週 = 280 天）──────────────
+        var GESTATION_DAYS = 280;
+        var lmpInput = document.getElementById('menstruation-input');
+        var dueInput = document.getElementById('expecteddate-input');
+
+        // 用 UTC 計算，避免時區／夏令時間造成差一天
+        function shiftDate(dateStr, days) {
+            if (!dateStr) return '';
+            var p = dateStr.split('-').map(Number);
+            var dt = new Date(Date.UTC(p[0], p[1] - 1, p[2]));
+            dt.setUTCDate(dt.getUTCDate() + days);
+            return dt.toISOString().slice(0, 10);
+        }
+
+        if (lmpInput && dueInput) {
+            lmpInput.addEventListener('change', function () {
+                dueInput.value = shiftDate(lmpInput.value, GESTATION_DAYS);
+            });
+            dueInput.addEventListener('change', function () {
+                lmpInput.value = shiftDate(dueInput.value, -GESTATION_DAYS);
+            });
         }
     });
 </script>

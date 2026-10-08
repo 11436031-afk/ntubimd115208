@@ -72,18 +72,52 @@
                                    class="w-full border-none rounded-xl pl-11 pr-3 py-3.5 text-sm outline-none font-medium transition-all
                                           {% if locks.birthdaytime %}bg-surface-container-low/40 text-on-surface-variant/60 cursor-not-allowed{% else %}bg-surface-container-low text-on-surface focus:ring-2 focus:ring-primary/30{% endif %}" />
                         </div>
+                        <!-- 清除出生時間：已鎖定的出生時間可清除（回到尚未出生），清除後欄位會解鎖，也可直接輸入新的時間 -->
+                        <input type="hidden" name="clear_birthdaytime" id="clear-birthday-flag" value="{% if birth_cleared %}1{% else %}0{% endif %}" />
+                        {% if locks.birthdaytime %}
+                        <button type="button" id="clear-birthday-btn"
+                                class="mt-1 ml-1 inline-flex items-center gap-1 text-xs font-bold text-red-600 hover:underline cursor-pointer">
+                            <span class="material-symbols-outlined text-[16px]">backspace</span>
+                            清除出生時間
+                        </button>
+                        <p id="clear-birthday-hint" class="hidden text-[10px] text-amber-700 pl-1 font-medium leading-relaxed">
+                            已清除出生時間，儲存後寶寶會回到「尚未出生」；也可以直接輸入新的出生時間。
+                        </p>
+                        {% endif %}
                     </div>
-                    <!-- LMP（唯讀） -->
+                    {% if can_edit_case_dates %}
+                    <!-- 最後一次月經 (LMP) ↔ 預產期：互相自動推算（LMP + 280 天 = 40 週），僅個案擁有者可修改 -->
+                    <div class="space-y-1.5">
+                        <label for="lmp-date-input" class="text-xs font-bold text-on-surface-variant uppercase tracking-wider pl-1">最後一次月經 (LMP)</label>
+                        <div class="relative">
+                            <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant/50 text-[20px]">calendar_month</span>
+                            <input type="date" id="lmp-date-input" name="lmp_date" value="{{ lmp_date_value }}"
+                                   max="{% now 'Y-m-d' %}"
+                                   class="w-full bg-surface-container-low border-none rounded-xl pl-11 pr-3 py-3.5 text-on-surface focus:ring-2 focus:ring-primary/30 transition-all text-sm outline-none font-medium" />
+                        </div>
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <label for="due-date-input" class="text-xs font-bold text-on-surface-variant uppercase tracking-wider pl-1">預產期</label>
+                        <div class="relative">
+                            <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant/50 text-[20px]">event_available</span>
+                            <input type="date" id="due-date-input" name="due_date" value="{{ due_date_value }}"
+                                   class="w-full bg-surface-container-low border-none rounded-xl pl-11 pr-3 py-3.5 text-on-surface focus:ring-2 focus:ring-primary/30 transition-all text-sm outline-none font-medium" />
+                        </div>
+                        <p class="text-[10px] text-on-surface-variant/60 pl-1 font-medium">修改其中一項，另一項會依 40 週（280 天）自動推算</p>
+                    </div>
+                    {% else %}
+                    <!-- LMP（唯讀：非個案擁有者不可修改） -->
                     <div class="space-y-1.5">
                         <label class="text-xs font-bold text-on-surface-variant uppercase tracking-wider pl-1">最後一次月經 (LMP)</label>
                         <div class="relative">
                             <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant/40 text-[20px]">calendar_month</span>
-                            <input type="text" name="lmp_date" value="{{ lmp_date_value }}" readonly
+                            <input type="text" value="{{ lmp_date_value }}" readonly
                                    class="w-full bg-surface-container-low/40 border-none rounded-xl pl-11 pr-3 py-3.5 text-on-surface-variant/60 text-sm outline-none font-medium cursor-not-allowed" />
                         </div>
                     </div>
 
-                    <!-- 預產期（唯讀，LMP + 280天） -->
+                    <!-- 預產期（唯讀） -->
                     {% if due_date_value %}
                     <div class="space-y-1.5">
                         <label class="text-xs font-bold text-on-surface-variant uppercase tracking-wider pl-1">預產期</label>
@@ -93,6 +127,7 @@
                                    class="w-full bg-surface-container-low/40 border-none rounded-xl pl-11 pr-3 py-3.5 text-on-surface-variant/60 text-sm outline-none font-medium cursor-not-allowed" />
                         </div>
                     </div>
+                    {% endif %}
                     {% endif %}
 
                     <!-- 出生週數（唯讀，自動計算） -->
@@ -299,7 +334,8 @@ document.addEventListener('DOMContentLoaded', function () {
     function pad2(n) { return String(n).padStart(2, '0'); }
 
     function applyMinBirthDate() {
-        if (!lmpValue || !birthdayInput || birthdayInput.readOnly) return;
+        if (!birthdayInput || birthdayInput.readOnly) return;
+        if (!lmpValue) { birthdayInput.removeAttribute('min'); return; }
         var minDate = new Date(lmpValue);
         if (isNaN(minDate.getTime())) return;
         minDate.setDate(minDate.getDate() + MIN_GESTATION_DAYS);
@@ -330,10 +366,84 @@ document.addEventListener('DOMContentLoaded', function () {
 
     applyMinBirthDate();
 
+    // ── 最後一次月經 (LMP) ↔ 預產期 互相推算（40 週 = 280 天）──────────
+    var GESTATION_DAYS = 280;
+    var lmpInput = document.getElementById('lmp-date-input');
+    var dueInput = document.getElementById('due-date-input');
+
+    // 用 UTC 計算，避免時區／夏令時間造成差一天
+    function shiftDate(dateStr, days) {
+        if (!dateStr) return '';
+        var p = dateStr.split('-').map(Number);
+        var dt = new Date(Date.UTC(p[0], p[1] - 1, p[2]));
+        dt.setUTCDate(dt.getUTCDate() + days);
+        return dt.toISOString().slice(0, 10);
+    }
+
+    // LMP 變動後，出生時間下限與出生週數要跟著用新的 LMP 重算
+    function onLmpChanged() {
+        lmpValue = lmpInput.value;
+        applyMinBirthDate();
+        calcBirthWeeks();
+    }
+
+    if (lmpInput && dueInput) {
+        lmpInput.addEventListener('change', function () {
+            dueInput.value = shiftDate(lmpInput.value, GESTATION_DAYS);
+            onLmpChanged();
+        });
+        dueInput.addEventListener('change', function () {
+            lmpInput.value = shiftDate(dueInput.value, -GESTATION_DAYS);
+            onLmpChanged();
+        });
+    }
+
     if (birthdayInput && !birthdayInput.readOnly) {
         birthdayInput.addEventListener('change', function() { clampToNow(); calcBirthWeeks(); });
         birthdayInput.addEventListener('input',  function() { clampToNow(); calcBirthWeeks(); });
     }
+    // ── 清除出生時間 ──────────────────────────────────────────────
+    // 已鎖定（唯讀）的出生時間可以清除；清除後欄位解鎖，可留空或重新輸入。
+    var clearBirthBtn  = document.getElementById('clear-birthday-btn');
+    var clearBirthFlag = document.getElementById('clear-birthday-flag');
+    var clearBirthHint = document.getElementById('clear-birthday-hint');
+    var LOCKED_CLS   = ['bg-surface-container-low/40', 'text-on-surface-variant/60', 'cursor-not-allowed'];
+    var UNLOCKED_CLS = ['bg-surface-container-low', 'text-on-surface', 'focus:ring-2', 'focus:ring-primary/30'];
+
+    function onBirthInputChanged() {
+        clampToNow();
+        calcBirthWeeks();
+        syncGenderRequirement();
+    }
+
+    function enterClearedBirthState(keepValue) {
+        if (!birthdayInput) return;
+        if (clearBirthFlag) clearBirthFlag.value = '1';
+        if (!keepValue) birthdayInput.value = '';
+        birthdayInput.readOnly = false;
+        LOCKED_CLS.forEach(function (c) { birthdayInput.classList.remove(c); });
+        UNLOCKED_CLS.forEach(function (c) { birthdayInput.classList.add(c); });
+        // 載入時是唯讀，原本沒有掛監聽，這裡補上
+        birthdayInput.addEventListener('input',  onBirthInputChanged);
+        birthdayInput.addEventListener('change', onBirthInputChanged);
+        if (clearBirthBtn)  clearBirthBtn.classList.add('hidden');
+        if (clearBirthHint) clearBirthHint.classList.remove('hidden');
+        applyMinBirthDate();
+        calcBirthWeeks();
+        syncGenderRequirement();
+    }
+
+    if (clearBirthBtn) {
+        clearBirthBtn.addEventListener('click', function () {
+            if (!window.confirm('清除後，這位寶寶會回到「尚未出生」的狀態（出生週數也會一併清除）。確定要清除出生時間嗎？')) return;
+            enterClearedBirthState(false);
+        });
+    }
+    // 驗證失敗重新顯示表單時，維持「已清除」的狀態（保留使用者剛輸入的值）
+    if (clearBirthBtn && clearBirthFlag && clearBirthFlag.value === '1') {
+        enterClearedBirthState(true);
+    }
+
     // 複製加入碼
     var copyBtn   = document.getElementById('copy-join-code-btn');
     var codeInput = document.getElementById('join-code-display');

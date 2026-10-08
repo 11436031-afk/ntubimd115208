@@ -96,7 +96,8 @@
             <p class="text-sm font-medium text-on-surface-variant">專為媽咪與寶寶打造的智能紀錄本</p>
         </div>
 
-        <div class="w-full bg-surface-container-lowest rounded-3xl p-10 shadow-[0_20px_40px_rgba(46,47,45,0.06)] border border-surface-container-low flex flex-col items-center text-center">
+        <!-- 手機版縮小內距：p-6，sm 以上維持 p-10 -->
+        <div class="w-full bg-surface-container-lowest rounded-3xl p-6 sm:p-10 shadow-[0_20px_40px_rgba(46,47,45,0.06)] border border-surface-container-low flex flex-col items-center text-center">
 
             <h2 class="text-2xl font-bold text-on-surface mb-3 tracking-tight">歡迎回來</h2>
             <p class="text-sm font-medium text-on-surface-variant mb-10 leading-relaxed">
@@ -105,11 +106,25 @@
 
             <div class="w-full flex flex-col items-center gap-4">
 
-                <div class="w-full flex justify-center">
-                    <div id="g_id_signin_container"></div>
+                <!-- Google 登入：使用官方按鈕（確保可以正常登入），
+                     以固定 360px 繪製後，用 CSS scale 等比例縮放到卡片可用寬度 -->
+                <div id="g_id_wrapper" class="w-full max-w-[360px] overflow-hidden" style="height:40px;">
+                    <div id="g_id_signin_container" style="width:360px; transform-origin: top left; text-align:left;"></div>
                 </div>
 
                 <script>
+                    var GOOGLE_BTN_W = 360, GOOGLE_BTN_H = 40;
+
+                    // 依 wrapper 實際寬度等比例縮放官方按鈕（不需重新繪製 iframe，點擊功能不受影響）
+                    function fitGoogleButton() {
+                        var wrapper = document.getElementById('g_id_wrapper');
+                        var container = document.getElementById('g_id_signin_container');
+                        if (!wrapper || !container) return;
+                        var scale = Math.min(1, wrapper.clientWidth / GOOGLE_BTN_W);
+                        container.style.transform = 'scale(' + scale + ')';
+                        wrapper.style.height = (GOOGLE_BTN_H * scale) + 'px';
+                    }
+
                     function initGoogleSignIn() {
                         google.accounts.id.initialize({
                             client_id: "1005276403057-p67ocf8c13e5121akigm7sq93l7db7s2.apps.googleusercontent.com",
@@ -129,24 +144,24 @@
                                 shape: 'pill',
                                 text: 'signin_with',
                                 logo_alignment: 'left',
-                                width: 360
+                                width: GOOGLE_BTN_W
                             }
                         );
+                        fitGoogleButton();
+                        if (window.ResizeObserver) {
+                            new ResizeObserver(fitGoogleButton).observe(document.getElementById('g_id_wrapper'));
+                        }
+                        window.addEventListener('resize', fitGoogleButton);
+                        window.addEventListener('load', fitGoogleButton);
                     }
                 </script>
 
-                <a href="{% provider_login_url 'line' %}" style="width:360px;" class="flex items-center justify-center gap-3 px-6 py-2.5 bg-line-green hover:bg-line-green-hover text-white font-medium rounded-full transition-all duration-200 shadow-sm border border-transparent">
+                <a href="{% provider_login_url 'line' %}" class="flex items-center justify-center gap-3 w-full max-w-[360px] h-10 px-6 bg-line-green hover:bg-line-green-hover text-white font-medium rounded-full transition-all duration-200 shadow-sm border border-transparent">
                     <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24">
                         <path d="M24 10.304c0-5.231-5.384-9.489-12-9.489s-12 4.258-12 9.489c0 4.69 4.27 8.632 10.035 9.379.39.084.922.258 1.057.593.12.3.078.766.038 1.067l-.164 1.021c-.049.303-.24 1.185 1.031.647 1.272-.538 6.848-4.032 9.34-6.9a8.9 8.9 0 0 0 2.663-6.227zm-15.53 3.491H6.945a.436.436 0 0 1-.436-.435v-4.14a.436.436 0 0 1 .436-.436h.5c.241 0 .436.195.436.436v3.204h.593a.436.436 0 0 1 .436.436v.44a.437.437 0 0 1-.436.435zm1.884-.435a.436.436 0 0 1-.436.435h-.5a.436.436 0 0 1-.436-.435v-4.14a.436.436 0 0 1 .436-.436h.5c.24 0 .435.195.435.436v4.14zm4.195 0a.437.437 0 0 1-.365.428c-.144.024-.593.064-.99-.272l-1.956-2.502v2.346a.436.436 0 0 1-.436.435h-.44a.436.436 0 0 1-.436-.435v-4.14a.436.436 0 0 1 .436-.436h.464c.182 0 .346.103.424.267l1.849 2.378V9.22a.436.436 0 0 1 .436-.436h.44a.436.436 0 0 1 .436.436v4.14zm3.931-2.285h-1.393v.819h1.393a.436.436 0 0 1 .436.435v.44a.436.436 0 0 1-.436.436h-2.329a.436.436 0 0 1-.436-.436v-4.14a.436.436 0 0 1 .436-.436h2.329a.436.436 0 0 1 .436.436v.44a.436.436 0 0 1-.436.435h-1.393v.75h1.393a.436.436 0 0 1 .436.435v.44a.436.436 0 0 1-.436.436z"/>
                     </svg>
                     <span>使用 LINE 帳號登入</span>
                 </a>
-            </div>
-
-            <div class="mt-8">
-                <p class="text-[11px] text-on-surface-variant/70">
-                    點擊登入即表示您同意 CoLoGrowth 的<br><a href="#" class="underline hover:text-primary transition-colors">服務條款</a> 與 <a href="#" class="underline hover:text-primary transition-colors">隱私權政策</a>
-                </p>
             </div>
         </div>
     </main>
