@@ -13,6 +13,19 @@
         border-color: #65518a;
         transform: scale(1.1);
     }
+
+    @media (max-width: 480px) {
+        .sharing-fields {
+            grid-template-columns: minmax(0, 1fr) !important;
+            gap: 0.75rem !important;
+        }
+
+        #csrf-token-holder + div main {
+            padding-left: 1rem;
+            padding-right: 1rem;
+            padding-top: 1rem;
+        }
+    }
 </style>
 {% endblock %}
 
@@ -64,7 +77,7 @@
 
                 <div class="space-y-4">
                     <!-- 寶寶名稱與月齡 -->
-                    <div class="grid grid-cols-2 gap-4">
+                    <div class="sharing-fields grid grid-cols-2 gap-4">
                         <div class="space-y-1.5">
                             <label class="text-xs font-bold text-on-surface-variant">寶寶暱稱</label>
                             <input type="text" id="card-baby-name" value="{{ baby_name }}" placeholder="例如：樂樂" 
@@ -78,7 +91,7 @@
                     </div>
 
                     <!-- 里程碑與日期 -->
-                    <div class="grid grid-cols-2 gap-4">
+                    <div class="sharing-fields grid grid-cols-2 gap-4">
                         <div class="space-y-1.5">
                             <label class="text-xs font-bold text-on-surface-variant">里程碑稱號</label>
                             <input type="text" id="card-milestone-title" value="第一次會翻身囉！" placeholder="例如：第一次抬頭" 

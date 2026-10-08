@@ -1,11 +1,13 @@
 import datetime
 from django.contrib import messages
+from django.db import transaction
 from django.shortcuts import get_object_or_404, render, redirect
 from django.utils import timezone
-from core.models import BabyInformation, FamilyMember
+from core.models import BabyInformation, BabyRecord, FamilyMember
 from views import baby_utils
 from views.pregnancycase import resolve_active_pregnancy_case, validate_birth_datetime
 from views.session_utils import get_current_user_profile
+from views.supabase_storage import delete_image
 # validate_birth_vitals 已集中定義於 baby_utils，這裡透過 baby_utils.validate_birth_vitals 呼叫
 
 
@@ -110,7 +112,19 @@ def delete_baby_information(request):
         request.session.modified = True
 
     baby_name = baby.name
-    baby.delete()
+    photo_urls = list(
+        BabyRecord.objects.filter(baby=baby)
+        .exclude(photo__isnull=True)
+        .exclude(photo='')
+        .values_list('photo', flat=True)
+    )
+    with transaction.atomic():
+        # BabyStatus 依附 BabyRecord，刪除成長紀錄時會一併刪除里程碑。
+        # pregnancycase 是同一胎次共用的個案資料，不能因刪除單一 baby 而刪除。
+        BabyRecord.objects.filter(baby=baby).delete()
+        baby.delete()
+    for photo_url in photo_urls:
+        delete_image(photo_url)
     messages.success(request, f'已刪除「{baby_name}」的嬰幼兒資訊。')
     return redirect('pregnancy_case')
 

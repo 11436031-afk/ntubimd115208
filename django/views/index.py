@@ -21,7 +21,7 @@ TAIWAN_TZ = ZoneInfo('Asia/Taipei')
 
 # care_record.py 權限不足時會帶 ?care_error=，在首頁轉成可讀訊息（避免無聲 redirect）
 CARE_ERROR_MESSAGES = {
-    'care_edit': '你目前的權限只能查看待辦清單，無法新增、修改或勾選。',
+    'care_edit': '你目前的權限只能查看待辦內容，無法新增、修改內容或刪除待辦清單。',
     'care_missing': '找不到這筆待辦清單，可能已被其他人刪除。',
 }
 
@@ -42,6 +42,22 @@ def _day_bounds_in_taiwan(date_value):
     start = datetime.datetime.combine(date_value, datetime.time.min, tzinfo=TAIWAN_TZ)
     end = start + timedelta(days=1)
     return start, end
+
+
+def _care_record_local_date(record):
+    record_time = record.recordtime
+    if isinstance(record_time, datetime.datetime):
+        if timezone.is_aware(record_time):
+            return timezone.localtime(record_time, TAIWAN_TZ).date()
+        return record_time.date()
+    return record_time
+
+
+def _care_record_sort_key(record):
+    record_time = record.recordtime
+    if timezone.is_naive(record_time):
+        record_time = timezone.make_aware(record_time, TAIWAN_TZ)
+    return record_time, record.carerecord_id
 
 
 def _build_pregnancy_chart_data(user, pregnancy_case=None):
@@ -173,18 +189,30 @@ def index(request):
         # 還沒有任何 active case 時退回舊行為，避免整段壞掉
         care_queryset = care_queryset.filter(user=current_user)
 
-    window_start_dt, _ = _day_bounds_in_taiwan(window_start)
-    _, window_end_exclusive = _day_bounds_in_taiwan(window_end)
-    window_records = list(
-        care_queryset.filter(recordtime__gte=window_start_dt, recordtime__lt=window_end_exclusive)
-    )
+    # 先抓取日期視窗前後一天，再以台北當地日期篩選，兼容舊資料的
+    # naive datetime 及不同資料庫時區設定，避免同一天的待辦被拆散。
+    query_start = window_start - timedelta(days=1)
+    query_end = window_end + timedelta(days=1)
+    query_start_dt, _ = _day_bounds_in_taiwan(query_start)
+    _, query_end_exclusive = _day_bounds_in_taiwan(query_end)
+    window_records = []
+    for rec in care_queryset.filter(
+        recordtime__gte=query_start_dt,
+        recordtime__lt=query_end_exclusive,
+    ):
+        local_date = _care_record_local_date(rec)
+        if window_start <= local_date <= window_end:
+            window_records.append(rec)
 
     record_days = set()
     completion_by_day = {}
     for rec in window_records:
         rec_time = rec.recordtime
         if isinstance(rec_time, datetime.datetime):
-            d = rec_time.date()
+            if timezone.is_aware(rec_time):
+                d = timezone.localtime(rec_time, TAIWAN_TZ).date()
+            else:
+                d = rec_time.date()
         else:
             d = rec_time
         record_days.add(d)
@@ -214,10 +242,11 @@ def index(request):
             'done': done,
         })
 
-    selected_start_dt, selected_end_dt = _day_bounds_in_taiwan(selected_date)
-    selected_day_records = list(
-        care_queryset.filter(recordtime__gte=selected_start_dt, recordtime__lt=selected_end_dt).order_by('recordtime', 'carerecord_id')
-    )
+    selected_day_records = [
+        rec for rec in window_records
+        if _care_record_local_date(rec) == selected_date
+    ]
+    selected_day_records.sort(key=_care_record_sort_key)
     selected_day_total = len(selected_day_records)
     selected_day_done = sum(1 for r in selected_day_records if r.state)
 

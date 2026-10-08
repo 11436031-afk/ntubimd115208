@@ -46,7 +46,7 @@
             class="bg-surface-container-lowest rounded-lg shadow-[0_20px_40px_rgba(46,47,45,0.06)] overflow-hidden">
             <!-- Header: Profile & Bio Stats -->
             <div class="p-8 pb-6">
-                <div class="flex justify-between items-center mb-6">
+                <div class="profile-summary flex justify-between items-center mb-6">
                     <div class="flex items-center gap-4 flex-1">
                         <div class="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center overflow-hidden border-2 border-surface-container-lowest shadow-sm shrink-0">
                             {% if current_user.avatar_url %}
@@ -55,8 +55,8 @@
                             <span class="material-symbols-outlined text-primary text-3xl">face_3</span>
                             {% endif %}
                         </div>
-                        <h2 class="text-3xl font-bold text-primary tracking-tight">{{ current_user.name|default:"未命名" }}</h2>
-                        <div class="ml-auto text-center shrink-0 px-4">
+                        <h2 class="profile-name text-3xl font-bold text-primary tracking-tight">{{ current_user.name|default:"未命名" }}</h2>
+                        <div class="profile-weight ml-auto text-center shrink-0 px-4">
                             <p class="text-[10px] text-on-surface-variant font-bold uppercase tracking-wider mb-0.5">體重</p>
                             <p class="text-base font-bold text-primary leading-none">
                                 {{ latest_weight }}{% if latest_weight != '-' %}<span class="text-xs font-medium ml-0.5 text-on-surface-variant">kg</span>{% endif %}

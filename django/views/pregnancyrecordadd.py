@@ -8,7 +8,11 @@ import calendar
 
 from core.models import Feeling, PhysicalCondition, PregnancyRecord, Prenatalrecord, Userfeeling, Userphysicalcondition, PregnancyCase, UserProfile
 from .pregnancyrecords import records_for_case
-from views.pregnancycase import resolve_active_pregnancy_case, url_with_active_selection
+from views.pregnancycase import (
+    build_active_selection_query,
+    resolve_active_pregnancy_case,
+    url_with_active_selection,
+)
 from views.session_utils import get_current_user_profile
 from views import baby_utils
 from views.upload_utils import InvalidImageError, safe_image_name, validate_image_upload
@@ -398,6 +402,7 @@ def pregnancyrecord(request):
         'selected_day_record_text': selected_day_record.record if selected_day_record else '',
         'has_day_data': has_day_data,
         'selected_day_record_id': selected_day_record.pregnancyrecord_id if selected_day_record else None,
+        'active_selection_query': build_active_selection_query(request),
     }
     return render(request, 'pregnancy/pregnancyrecord.html', context)
 

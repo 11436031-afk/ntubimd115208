@@ -99,7 +99,7 @@
                     </div>
                     {% endif %}
                     {% if not can_edit_care %}
-                    <p class="text-[11px] font-semibold text-on-surface-variant/70">你目前是「只能查看」的協助者，無法新增或修改待辦清單。</p>
+                    <p class="text-[11px] font-semibold text-on-surface-variant/70">你目前是「只能查看」的協助者，可以勾選完成狀態，但無法新增、修改內容或刪除待辦清單。</p>
                     {% endif %}
 
                     <div class="flex items-center gap-2">
@@ -144,7 +144,7 @@
                         {% if care_records %}
                             {% for care in care_records %}
                             <div class="flex items-start gap-3">
-                                {% if can_edit_care %}
+                                {% if can_view_care %}
                                 <form method="post" action="{% url 'set_care_status' %}" class="shrink-0">
                                     {% csrf_token %}
                                     <input type="hidden" name="carerecord_id" value="{{ care.carerecord_id }}">
@@ -156,12 +156,6 @@
                                         {% endif %}
                                     </button>
                                 </form>
-                                {% else %}
-                                <div class="w-6 h-6 rounded-md {% if care.state %}bg-[#d6beff]{% else %}border-2 border-[#d6beff]{% endif %} flex items-center justify-center shrink-0 opacity-60" aria-label="待辦完成狀態（唯讀）">
-                                    {% if care.state %}
-                                    <span class="material-symbols-outlined text-primary text-sm font-bold">check</span>
-                                    {% endif %}
-                                </div>
                                 {% endif %}
                                 <div class="flex-1 min-w-0">
                                     <div class="flex items-center gap-2 min-w-0">

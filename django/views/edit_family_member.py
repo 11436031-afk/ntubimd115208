@@ -142,7 +142,7 @@ def save_permissions(request):
     member.permissions = _parse_permissions_from_post(request.POST)
     member.save(update_fields=['permissions'])
     messages.success(request, f'已更新「{member.user.name}」的權限設定。')
-    return _redirect_back(request)
+    return redirect('profile')
 
 
 @require_POST

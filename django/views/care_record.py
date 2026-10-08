@@ -208,8 +208,8 @@ def set_care_status(request):
     selected_date = _parse_selected_date(request.POST.get('selected_date'))
     case = resolve_active_pregnancy_case(request, current_user)
 
-    # 勾選完成也是寫入操作，與新增／編輯／刪除一致要求 edit 權限
-    if not case or not _check_care_permission(current_user, case, required='edit'):
+    # 檢視權限可更新完成狀態；新增、編輯內容與刪除仍需 edit 權限。
+    if not case or not _check_care_permission(current_user, case, required='view'):
         return _redirect_home_with_error(request, selected_date, 'care_edit')
 
     care_id = request.POST.get('carerecord_id')

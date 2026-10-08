@@ -11,10 +11,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const monthTodayBtn = document.getElementById('month-today-btn');
     const monthNextBtn = document.getElementById('month-next-btn');
  
-    if (!monthPickerModal || !customDatePickerBtn || !monthPickerContent || !monthPickerGrid || !monthPickerYearDisplay || !prevYearBtn || !nextYearBtn || !monthPickerBackdrop) {
-        return;
-    }
-
     // 切換月份／日期時必須帶上目前選到的胎數或寶寶，
     // 否則跳轉後 active selection 會被 fallback 蓋掉，畫面跳回別的個案。
     function buildDateUrl(dateIso) {
@@ -42,6 +38,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let pickerMode = 'month';
  
     function renderMonthGrid() {
+        if (!monthPickerGrid) {
+            return;
+        }
         monthPickerGrid.innerHTML = '';
  
         for (let month = 1; month <= 12; month++) {
@@ -69,6 +68,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
  
     function renderYearGrid() {
+        if (!monthPickerGrid) {
+            return;
+        }
         monthPickerGrid.innerHTML = '';
  
         const startYear = tempYear - 5;
@@ -131,6 +133,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
  
     function openMonthPicker() {
+        if (!monthPickerModal || !monthPickerContent || !monthPickerYearDisplay) {
+            return;
+        }
         tempYear = currentSelectedYear;
         tempMonth = currentSelectedMonth;
         pickerMode = 'month';
@@ -147,6 +152,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
  
     function closeMonthPickerModal() {
+        if (!monthPickerModal || !monthPickerContent) {
+            return;
+        }
         monthPickerContent.classList.remove('translate-y-0', 'sm:translate-y-0', 'sm:scale-100');
         monthPickerContent.classList.add('translate-y-full', 'sm:translate-y-4', 'sm:scale-95');
  
@@ -156,8 +164,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 300);
     }
  
-    customDatePickerBtn.addEventListener('click', openMonthPicker);
-    monthPickerBackdrop.addEventListener('click', closeMonthPickerModal);
+    if (customDatePickerBtn) {
+        customDatePickerBtn.addEventListener('click', openMonthPicker);
+    }
+    if (monthPickerBackdrop) {
+        monthPickerBackdrop.addEventListener('click', closeMonthPickerModal);
+    }
     if (monthPrevBtn) {
         monthPrevBtn.addEventListener('click', () => shiftMonth(-1));
     }
@@ -177,22 +189,32 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
  
-    prevYearBtn.addEventListener('click', () => {
-        tempYear -= pickerMode === 'year' ? 12 : 1;
-        monthPickerYearDisplay.innerText = `${tempYear}年`;
-        renderPickerGrid();
-    });
- 
-    nextYearBtn.addEventListener('click', () => {
-        tempYear += pickerMode === 'year' ? 12 : 1;
-        monthPickerYearDisplay.innerText = `${tempYear}年`;
-        renderPickerGrid();
-    });
- 
-    monthPickerYearDisplay.addEventListener('click', () => {
-        pickerMode = pickerMode === 'year' ? 'month' : 'year';
-        monthPickerYearDisplay.innerText = `${tempYear}年`;
-        renderPickerGrid();
-    });
+    if (prevYearBtn) {
+        prevYearBtn.addEventListener('click', () => {
+            tempYear -= pickerMode === 'year' ? 12 : 1;
+            if (monthPickerYearDisplay) {
+                monthPickerYearDisplay.innerText = `${tempYear}年`;
+            }
+            renderPickerGrid();
+        });
+    }
+
+    if (nextYearBtn) {
+        nextYearBtn.addEventListener('click', () => {
+            tempYear += pickerMode === 'year' ? 12 : 1;
+            if (monthPickerYearDisplay) {
+                monthPickerYearDisplay.innerText = `${tempYear}年`;
+            }
+            renderPickerGrid();
+        });
+    }
+
+    if (monthPickerYearDisplay) {
+        monthPickerYearDisplay.addEventListener('click', () => {
+            pickerMode = pickerMode === 'year' ? 'month' : 'year';
+            monthPickerYearDisplay.innerText = `${tempYear}年`;
+            renderPickerGrid();
+        });
+    }
 });
  

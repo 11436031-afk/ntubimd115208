@@ -69,9 +69,10 @@
         </div>
         {% else %}
 
-        <form method="post" action="{% url 'edit_helper_permissions' %}" class="space-y-6">
+        <form method="post" action="{% url 'save_family_permissions' %}" class="space-y-6">
             {% csrf_token %}
             <input type="hidden" name="member_id" value="{{ selected_member.familymember_id }}">
+            <input type="hidden" name="next" value="profile">
             <input type="hidden" id="perm_baby_records" name="perm_baby_records" value="{{ selected_member.permissions.baby_records|default:'view' }}">
             <input type="hidden" id="perm_mom_records" name="perm_mom_records" value="{{ selected_member.permissions.mom_records|default:'view' }}">
             <input type="hidden" id="perm_growth" name="perm_growth" value="{{ selected_member.permissions.growth|default:'view' }}">

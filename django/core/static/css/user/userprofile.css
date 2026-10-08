@@ -40,3 +40,47 @@
         input[type=number] {
             -moz-appearance: textfield;
         }
+
+        @media (max-width: 480px) {
+            .profile-summary {
+                align-items: flex-start;
+                gap: 0.5rem;
+            }
+
+            .profile-summary > div:first-child {
+                min-width: 0;
+                gap: 0.6rem;
+            }
+
+            .profile-name {
+                min-width: 0;
+                font-size: 1.25rem !important;
+                line-height: 1.25;
+                overflow-wrap: anywhere;
+            }
+
+            .profile-weight {
+                padding-left: 0.25rem;
+                padding-right: 0.25rem;
+            }
+
+            .profile-summary > button {
+                flex: 0 0 auto;
+                padding: 0.6rem;
+            }
+        }
+
+        @media (max-width: 360px) {
+            .profile-summary > div:first-child {
+                gap: 0.4rem;
+            }
+
+            .profile-summary > div:first-child > div:first-child {
+                width: 3rem;
+                height: 3rem;
+            }
+
+            .profile-name {
+                font-size: 1.1rem !important;
+            }
+        }

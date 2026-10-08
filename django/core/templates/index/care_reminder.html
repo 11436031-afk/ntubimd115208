@@ -51,7 +51,7 @@
                         <label class="text-xs font-bold text-on-surface-variant uppercase tracking-wider pl-1 cursor-pointer" for="record_time_display">待辦時間 (時:分)</label>
                         <div class="relative cursor-pointer" id="time-input-container">
                             <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant/50 text-[20px] pointer-events-none transition-colors" id="time-picker-icon">schedule</span>
-                            <input type="text" id="record_time_display" readonly placeholder="請選擇時間..." class="w-full bg-surface-container-low border-none rounded-xl pl-12 pr-10 py-3.5 text-on-surface focus:ring-2 focus:ring-primary-container transition-all text-sm outline-none font-medium cursor-pointer" />
+                            <input type="text" id="record_time_display" inputmode="numeric" maxlength="5" placeholder="HH:MM" class="w-full bg-surface-container-low border-none rounded-xl pl-12 pr-10 py-3.5 text-on-surface focus:ring-2 focus:ring-primary-container transition-all text-sm outline-none font-medium cursor-pointer" aria-label="待辦時間，可輸入 24 小時制時間" />
                             <span class="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant/40 text-[20px] pointer-events-none transition-all duration-200" id="time-picker-arrow">expand_more</span>
                             <input name="record_time" id="record_time" type="hidden" required value="{{ form_data.record_time|default:"" }}" />
                         </div>
@@ -528,6 +528,25 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
+    displayInput.addEventListener('input', function () {
+        const value = displayInput.value.trim();
+        const match = value.match(/^(\d{1,2}):(\d{2})$/);
+        if (!match) return;
+        const hour24 = Number(match[1]);
+        const minute = Number(match[2]);
+        if (hour24 > 23 || minute > 59) return;
+        const parsed = from24HourString(
+            `${String(hour24).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
+        );
+        if (!parsed) return;
+        currentPeriod = parsed.period;
+        currentHour = parsed.hour12;
+        currentMinute = parsed.minute;
+        isTimeSelected = true;
+        hiddenInput.value = to24HourString(currentPeriod, currentHour, currentMinute);
+        preview.textContent = formatDisplay(currentPeriod, currentHour, currentMinute);
+    });
+
     nowBtn.addEventListener('click', function (e) {
         e.stopPropagation();
         const now = new Date();
@@ -579,7 +598,8 @@ document.addEventListener('DOMContentLoaded', function () {
             currentPeriod = parsed.period;
             currentHour = parsed.hour12;
             currentMinute = parsed.minute;
-            updatePreviewAndInputs(true);
+            isTimeSelected = true;
+            updatePreviewAndInputs();
         }
     }
 

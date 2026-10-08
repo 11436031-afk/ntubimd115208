@@ -5,6 +5,12 @@
 
 {% block extra_css %}
 <style>
+    .history-time-filter select {
+        appearance: none;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+    }
+
     /* 影片背景柔光流動動畫 */
     @keyframes meshGlow {
         0% { background-position: 0% 50%; }
@@ -57,7 +63,7 @@
             <!-- 時間篩選 + 模式切換按鈕群 -->
             <div class="flex items-center gap-2">
                 <!-- 時間篩選下拉選單 (單一乾淨按鈕，透明覆蓋防重複箭頭) -->
-                <form method="GET" class="relative inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-white/90 border border-[#E8E0EF] text-[#65518a] text-xs font-bold shadow-2xs hover:bg-[#65518a] hover:text-white transition-all duration-300 group cursor-pointer overflow-hidden">
+                <form method="GET" class="history-time-filter relative inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-white/90 border border-[#E8E0EF] text-[#65518a] text-xs font-bold shadow-2xs hover:bg-[#65518a] hover:text-white transition-all duration-300 group cursor-pointer overflow-hidden">
                     <input type="hidden" name="mode" value="{{ mode|default:'video' }}">
                     {% if filter_type %}<input type="hidden" name="filter" value="{{ filter_type }}">{% endif %}
                     
