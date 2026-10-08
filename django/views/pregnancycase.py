@@ -678,32 +678,21 @@ def baby_switcher(request):
     }
 
 # --- Pregnancy case CRUD views ---
+GESTATION_DAYS = 280  # 40 週：最後一次月經第一天起算
+
+
 def _calculate_expected_date(menstruation):
-    """EDD from LMP: Naegele's rule (month −3, day +7, year +1), same as +280 days."""
+    """EDD from LMP：最後一次月經第一天 + 280 天（40 週）。"""
     if not menstruation:
         return None
-    year = menstruation.year + 1
-    month = menstruation.month - 3
-    if month <= 0:
-        month += 12
-        year -= 1
-    day = min(menstruation.day, calendar.monthrange(year, month)[1])
-    due = menstruation.replace(year=year, month=month, day=day) + timedelta(days=7)
-    return due
+    return menstruation + timedelta(days=GESTATION_DAYS)
 
 
 def _calculate_lmp_from_due(expecteddate):
-    """LMP from EDD：Naegele's rule 反推（月＋3、日－7、年－1），為 _calculate_expected_date 的反函式。"""
+    """LMP from EDD：預產期 - 280 天，為 _calculate_expected_date 的反函式。"""
     if not expecteddate:
         return None
-    year = expecteddate.year - 1
-    month = expecteddate.month + 3
-    if month > 12:
-        month -= 12
-        year += 1
-    day = min(expecteddate.day, calendar.monthrange(year, month)[1])
-    lmp = expecteddate.replace(year=year, month=month, day=day) - timedelta(days=7)
-    return lmp
+    return expecteddate - timedelta(days=GESTATION_DAYS)
 
 
 def _generate_unique_code():
@@ -783,6 +772,41 @@ def _build_add_form_state(post, baby_count):
         'triplet_count': post.get('triplet_count', '3') or '3',
         'babies': babies,
     }
+
+
+def _case_pregnancy_period(case, today=None):
+    """回傳既有個案佔用的懷孕期間 (起, 迄)；缺少 LMP 無法判斷時回傳 None。
+
+    起 = 推估受孕日（LMP + 14 天，沿用原本的判斷基準）。
+    迄 = 所有嬰幼兒都已出生 → 最晚的出生日；
+         還有未出生者 → 預產期（超期未出生則算到今天，仍視為佔用中）。
+    """
+    today = today or timezone.localdate()
+    lmp = get_lmp_date(case)
+    if not lmp:
+        return None
+    start = lmp + timedelta(days=14)
+    babies = _ordered_babies(case)
+    births = [_local_birth_date(b.birthdaytime) for b in babies if b.birthdaytime]
+    if births and len(births) == len(babies):
+        end = max(births)
+    else:
+        due = case.expecteddate or (lmp + timedelta(days=280))
+        end = max(due, today)
+    return start, end
+
+
+def _find_overlapping_case(existing_cases, new_start, new_end, today=None):
+    """找出與 [new_start, new_end] 重疊的既有個案，回傳 (case, 起, 迄)；沒有則回傳 None。
+    只比對「不同的個案」；同一個 PregnancyCase 內的多胞胎不算重疊。"""
+    for existing in existing_cases:
+        period = _case_pregnancy_period(existing, today)
+        if not period:
+            continue
+        start, end = period
+        if new_start <= end and start <= new_end:
+            return existing, start, end
+    return None
 
 
 def add_pregnancy_case(request):
@@ -894,28 +918,31 @@ def add_pregnancy_case(request):
                 'production_method': request.POST.get(f'production_method_{num}') or request.POST.get('production_method'),
             })
 
-        # ── 禁止同時新增兩個進行中的懷孕紀錄 ──────────────────────────────
-        existing_cases = list(PregnancyCase.objects.filter(user=user))
-        has_ongoing = any(is_pregnancy_ongoing(c) for c in existing_cases)
-        if has_ongoing:
-            return _render_form('您目前已有進行中的懷孕紀錄，無法同時新增第二胎。請待目前懷孕結束後再新增。')
-
-        # 不允許另一筆懷孕紀錄在前一位嬰幼兒出生前就已受孕；同一
-        # PregnancyCase 內建立多胞胎不受此限制。
-        previous_birth_dates = [
-            _local_birth_date(baby.birthdaytime)
-            for existing_case in existing_cases
-            for baby in existing_case.babyinformation_set.all()
-            if baby.birthdaytime
+        # ── 所有欄位都驗證通過後，才檢查「懷孕期間」是否與既有個案重疊 ──────
+        # 不再因為「已有進行中的懷孕」就直接擋掉：正在懷孕時仍可補登前幾胎，
+        # 只有期間真的重疊（例如上一胎出生前就已受孕）才不允許。
+        # 同一 PregnancyCase 內的多胞胎不受影響（它們本來就在同一筆個案裡）。
+        existing_cases = list(
+            PregnancyCase.objects.filter(user=user).prefetch_related('babyinformation_set')
+        )
+        today = timezone.localdate()
+        new_start = menstruation + timedelta(days=14)  # 推估受孕日
+        new_births = [
+            _local_birth_date(p['birthdaytime']) for p in babies_payload if p['birthdaytime']
         ]
-        latest_previous_birth = max(previous_birth_dates, default=None)
-        estimated_conception = menstruation + timedelta(days=14) if menstruation else None
-        if (latest_previous_birth and estimated_conception
-                and estimated_conception <= latest_previous_birth):
+        if new_births and len(new_births) == len(babies_payload):
+            new_end = max(new_births)
+        else:
+            new_end = max(expecteddate or (menstruation + timedelta(days=280)), today)
+
+        conflict = _find_overlapping_case(existing_cases, new_start, new_end, today)
+        if conflict:
+            other, other_start, other_end = conflict
             return _render_form(
-                '新懷孕紀錄的推估受孕時間早於上一位嬰幼兒出生日期。'
+                f'此胎的懷孕期間（{new_start:%Y-%m-%d} ～ {new_end:%Y-%m-%d}）'
+                f'與既有的懷孕紀錄（{other_start:%Y-%m-%d} ～ {other_end:%Y-%m-%d}）重疊。'
                 '若是雙胞胎或多胞胎，請將嬰幼兒新增在同一筆懷孕紀錄中；'
-                '若是下一胎，請確認最後一次月經日期。'
+                '若是不同胎次，請確認最後一次月經日期與出生日期是否正確。'
             )
 
         # ── 驗證全數通過，才真正建立 PregnancyCase 與嬰幼兒資料 ──────────
@@ -943,10 +970,6 @@ def add_pregnancy_case(request):
     user = get_current_user_profile(request)
     if not user:
         return redirect('login')
-    existing_cases = list(PregnancyCase.objects.filter(user=user))
-    if any(is_pregnancy_ongoing(c) for c in existing_cases):
-        messages.error(request, '您目前已有進行中的懷孕紀錄，無法同時新增第二胎。')
-        return redirect('pregnancy_case')
     code = _generate_unique_code()
     return render(request, 'pregnancycase/add_pregnancy_case.html', {'generated_code': code})
 
@@ -1025,13 +1048,22 @@ def edit_pregnancy_case(request):
         except ValueError:
             return _render_error('預產期格式不正確，請重新輸入', menstruation_str, expecteddate_str)
 
-        # 只填預產期時，用 Naegele's Rule 反推最後月經日期
-        if not new_menstruation:
-            new_menstruation = _calculate_lmp_from_due(new_expecteddate)
-            if not new_menstruation:
-                return _render_error('預產期格式不正確，請重新輸入', menstruation_str, expecteddate_str)
-        if not new_expecteddate:
+        # 最後月經日期 ↔ 預產期 互相推算（280 天）：依「哪一個欄位被改動」決定誰算誰。
+        #   - 改了最後月經日期（或兩個都改）→ 以最後月經日期為準，重算預產期
+        #   - 只改了預產期                  → 由預產期反推最後月經日期
+        #   - 兩個都沒改                    → 原樣保留（醫師手動設定、不等於 LMP+280 的預產期不會被覆蓋）
+        lmp_changed = new_menstruation != case.menstruation
+        edd_changed = new_expecteddate != case.expecteddate
+        if lmp_changed and new_menstruation:
             new_expecteddate = _calculate_expected_date(new_menstruation)
+        elif edd_changed and new_expecteddate:
+            new_menstruation = _calculate_lmp_from_due(new_expecteddate)
+        elif not new_menstruation and new_expecteddate:
+            new_menstruation = _calculate_lmp_from_due(new_expecteddate)
+        elif not new_expecteddate and new_menstruation:
+            new_expecteddate = _calculate_expected_date(new_menstruation)
+        if not new_menstruation or not new_expecteddate:
+            return _render_error('預產期格式不正確，請重新輸入', menstruation_str, expecteddate_str)
 
         # ── 逐一解析每位寶寶的姓名／出生時間，並用「新的 LMP」驗證合理性 ──────
         # 這裡是關鍵修正：LMP 是推算出生週數的權威基準，若使用者調整了 LMP，
